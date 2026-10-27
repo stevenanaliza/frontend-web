@@ -11,9 +11,9 @@ Los reportes existentes se conservaron y los módulos antes previstos ahora tien
 | Resúmenes diarios | Filtros, páginas remotas, detalle, actividad histórica, carga actual y temperaturas    |
 | Solicitudes       | Grupos por sucursal/persona, grupo sin sucursal, filtros, creador, detalle e historial |
 | Evidencias        | Metadatos, temperatura y consulta de imagen protegida por solicitud                    |
-| Motoristas        | Directorio, estado/carga actuales y edición autorizada del límite con motivo           |
-| Usuarios          | Directorio, detalle, historial de roles y edición autorizada de datos/estado           |
-| Sucursales        | Directorio por empresa y selector para cuentas sin empresa de contexto                 |
+| Motoristas        | Directorio, alta de perfil y motocicleta, carga actual y edición autorizada del límite |
+| Usuarios          | Alta, detalle, edición, roles delegables, asignación/revocación y contraseñas          |
+| Sucursales        | Directorio y alta con ubicación aprobada de la empresa                                 |
 
 ## Correcciones de la revisión
 
@@ -28,8 +28,8 @@ Los reportes existentes se conservaron y los módulos antes previstos ahora tien
 
 ## Evidencia de verificación
 
-- 28 pruebas unitarias aprobadas.
-- 18 escenarios de navegador aprobados en Chrome con respuestas de prueba extraídas del documento oficial.
+- 35 pruebas unitarias aprobadas de contratos, cliente JWT, permisos y reglas de presentación.
+- 33 escenarios de navegador aprobados en Chrome, incluyendo compilación estática y API de prueba en otro origen con CORS real.
 - Compilación TypeScript/Vite y formato comprobados.
 - Capturas de escritorio/tablet inspeccionadas, con comprobación de ausencia de desbordamiento del documento; las tablas conservan su propio desplazamiento.
 - Backend real a través del proxy: salud 200; sin credenciales, resúmenes, motoristas, agrupaciones y usuarios 401.
@@ -38,11 +38,18 @@ Las pruebas automatizadas de edición modifican únicamente respuestas aisladas 
 
 El usuario confirmó una sesión abierta. Computer Use se detuvo al no poder identificar de forma segura la URL de Chrome; no se siguió interactuando con esa ventana, ni se extrajeron sus credenciales. Queda pendiente comprobar visualmente las pantallas nuevas con esa sesión real.
 
-## Siguientes pasos y contrato pendiente
+## Flujos completados en esta ampliación
 
-1. Validar las pantallas con una cuenta administrativa real y su alcance efectivo.
-2. Alta de usuarios y asignación/revocación de roles. El documento describe las entradas y reglas, pero debe incluir un **ejemplo JSON completo de la respuesta** de `GET /api/v1/usuarios/roles-asignables/?tipo_alcance=EMPRESA&empresa_id=<uuid>`, precisando su envoltura y los campos del catálogo, antes de construir el selector sin fijar códigos de roles.
-3. Alta de sucursales con selección paginada de una ubicación aprobada para la empresa; el contrato ya está documentado. La edición de sucursales existentes no se implementará mientras no tenga endpoint oficial.
-4. Alta de perfiles de motorista y selección de usuario/vehículo permitidos; después, asignación y reasignación de servicios con validación de cupo en backend.
-5. Resolver persistencia segura de sesión web y coordinación de pestañas antes de producción. La implementación actual usa `sessionStorage` y la renovación se coordina dentro de cada instancia; la diferencia respecto al almacenamiento seguro nativo sigue documentada en README.
-6. Configurar CORS o el proxy del alojamiento productivo y probar el flujo con HTTPS. El proxy de Vite resuelve únicamente el desarrollo local.
+1. Alta de usuarios y gestión de roles. La envoltura y los campos de roles asignables se comprobaron leyendo la vista y el serializador del backend, sin modificarlos. La evidencia se registra en `CONTRATOS_WEB_VERIFICADOS.md`.
+2. Restablecimiento administrativo de contraseñas y cambio de la propia cuenta cuando está autorizado por esa misma API. Incluye confirmación de contraseña y cierre de sesiones; no crea una API pública de recuperación inexistente.
+3. Alta de sucursales con selector paginado de ubicaciones aprobadas; alta de perfiles de motorista y registro de motocicletas.
+4. Asignación/reasignación, corrección de tubos y cancelación de solicitudes con motivo y validación definitiva en Django.
+5. Autenticación directa de React a Django mediante JWT, conservando las rutas oficiales y sus errores. El par se guarda en sessionStorage por backend Corporate; la renovación se coordina dentro de la pestaña y las operaciones de escritura no se repiten. La salida o el cambio de contraseña propia eliminan las credenciales; las respuestas pendientes no pueden restaurarlas.
+6. Publicación estática en Vercel, con reescritura de rutas React y encabezados en `vercel.json`. Se retiraron el servidor Node de sesiones, las cookies del panel, sus pruebas y las variables privadas asociadas. Node queda como herramienta de desarrollo, compilación y pruebas.
+
+## Dependencias externas y límites restantes
+
+- Validación de datos autenticados reales con la cuenta del usuario: no se completó mediante la herramienta de Chrome por la limitación de identificación de URL indicada arriba.
+- El usuario publicó frontend y backend. Se verificaron `https://frontend-web-eight-self.vercel.app` y `https://vitago.onrender.com`: salud 200, perfil anónimo 401 y login vacío 400 desde un navegador aislado en el dominio del panel, con CORS correcto. El JavaScript publicado tiene vacío el origen y `/mi-cuenta` devuelve 404 al abrir directamente. La configuración local de producción y `vercel.json` corrigen ambos problemas; falta publicar la actualización y comprobar una sesión real. No se han modificado servicios externos desde esta entrega.
+- Los JWT se guardan en sessionStorage y son accesibles al JavaScript de la aplicación. La recuperación corresponde a la pestaña; no se ofrece la sesión compartida automática del servidor anterior. Si Django revoca otras sesiones, sus siguientes consultas exigirán un nuevo acceso.
+- El contrato no ofrece recuperación por correo, cambio personal con contraseña anterior ni edición de sucursales existentes. Esos endpoints requieren ampliación por el equipo del backend; no se han inventado.

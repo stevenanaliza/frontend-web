@@ -7,7 +7,11 @@ export default defineConfig(({ mode, command, isPreview }) => {
     !isPreview &&
     mode !== "prueba" &&
     env.VITE_API_PROXY === "true";
-  if (usarProxy) {
+  if (usarProxy || command === "build") {
+    if (!env.VITE_API_URL?.trim())
+      throw new Error(
+        "Falta VITE_API_URL. Configura el origen del backend Corporate antes de compilar y vuelve a desplegar.",
+      );
     const destino = new URL(env.VITE_API_URL);
     if (
       !["http:", "https:"].includes(destino.protocol) ||
@@ -21,6 +25,10 @@ export default defineConfig(({ mode, command, isPreview }) => {
         "VITE_API_URL debe ser el origen HTTP(S) del backend, sin rutas ni credenciales.",
       );
     }
+    if (process.env.VERCEL === "1" && destino.protocol !== "https:")
+      throw new Error(
+        "VITE_API_URL debe usar HTTPS para publicar el panel en Vercel.",
+      );
   }
   return {
     plugins: [react()],

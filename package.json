@@ -9,7 +9,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "format:check": "prettier --check src tests *.ts *.json index.html README.md"
+    "format:check": "prettier --check src tests *.ts *.json index.html README.md REVISION_FRONTEND.md CONTRATOS_WEB_VERIFICADOS.md deploy/README.md"
   },
   "dependencies": {
     "lucide-react": "1.62.0",

@@ -1,4 +1,5 @@
 import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "./auth";
 import { sucursalSchema } from "./contratos-admin";
 import {
@@ -8,16 +9,28 @@ import {
   usePaginaRemota,
 } from "./admin-comunes";
 import { Etiqueta, Panel } from "./componentes";
+import { NuevaSucursal } from "./Altas";
+import { Exito } from "./formularios";
 
 export function Sucursales() {
   const { perfil } = useAuth();
   const [params, setParams] = useSearchParams();
   const empresa = params.get("empresa_id") ?? perfil?.empresa?.id ?? "";
+  const [nueva, setNueva] = useState(false),
+    [revision, setRevision] = useState(0),
+    [mensaje, setMensaje] = useState("");
   return (
     <>
       <Cabecera
         titulo="Sucursales"
         texto="Sedes autorizadas de la empresa y ubicaciones registradas."
+        accion={
+          empresa && perfil?.permisos.includes("sucursal.administrar") ? (
+            <button className="boton primario" onClick={() => setNueva(!nueva)}>
+              Crear sucursal
+            </button>
+          ) : undefined
+        }
       />
       {!empresa ? (
         <SelectorEmpresa seleccionar={(id) => setParams({ empresa_id: id })} />
@@ -41,7 +54,20 @@ export function Sucursales() {
               </button>
             )}
           </div>
-          <ListaSucursales key={empresa} empresa={empresa} />
+          {mensaje && <Exito>{mensaje}</Exito>}
+          {nueva && (
+            <NuevaSucursal
+              key={empresa}
+              empresa={empresa}
+              cerrar={() => setNueva(false)}
+              creada={() => {
+                setNueva(false);
+                setMensaje("Sucursal creada.");
+                setRevision((v) => v + 1);
+              }}
+            />
+          )}
+          <ListaSucursales key={`${empresa}:${revision}`} empresa={empresa} />
         </>
       )}
     </>

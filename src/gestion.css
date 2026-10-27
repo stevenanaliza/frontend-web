@@ -1,0 +1,188 @@
+.campos-operacion {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.panel + .formulario-edicion {
+  margin-top: 24px;
+}
+.campos-operacion:disabled {
+  opacity: 0.7;
+}
+.subform {
+  border-top: 1px solid var(--border);
+  margin-top: 25px;
+  padding-top: 22px;
+}
+.subform h3 {
+  font-size: 16px;
+}
+.subform > .campo-form,
+.empresa-campo,
+.selector-remoto {
+  margin: 18px 0;
+}
+.selector-remoto {
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+}
+.selector-remoto legend {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 6px;
+  color: var(--ink);
+}
+.selector-remoto .estado {
+  min-height: 100px;
+  padding: 22px 10px;
+}
+.selector-remoto .error-vista {
+  margin: 10px 0;
+}
+.seleccion-actual {
+  padding: 10px 12px;
+  background: #edf1f7;
+  border-radius: 6px;
+  color: var(--primary);
+  font-size: 12px;
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+.opciones-remotas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  max-height: 330px;
+  overflow: auto;
+  padding: 4px;
+}
+.opcion-remota {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.opcion-remota.elegida {
+  border-color: var(--primary);
+  background: #eef2f8;
+}
+.opcion-remota input {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+.opcion-remota small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.opcion-remota:has(input:disabled) {
+  background: #fafbfc;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.paginas-selector {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+.paginas-selector > span {
+  margin-right: auto;
+}
+.paginas-selector .boton {
+  font-size: 12px;
+  min-height: 40px;
+}
+.password-form {
+  position: relative;
+}
+.password-form input {
+  padding-right: 48px;
+}
+.password-form > .boton {
+  position: absolute;
+  right: 0;
+  top: 27px;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+}
+.confirmacion {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  margin: 20px 0;
+}
+.confirmacion input {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  margin: 4px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+.empresa-campo details {
+  margin: 12px 0;
+  font-size: 13px;
+}
+.empresa-campo summary {
+  cursor: pointer;
+  color: var(--primary);
+  min-height: 30px;
+}
+.contexto-form {
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+.formulario-edicion .campo-form + .selector-remoto {
+  margin-top: 22px;
+}
+.formulario-edicion + .formulario-edicion {
+  margin-top: 24px;
+}
+.formulario-edicion .acciones {
+  margin-top: 16px;
+}
+.formulario-edicion .aviso {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+@media (max-width: 700px) {
+  .opciones-remotas {
+    grid-template-columns: 1fr;
+    max-height: 330px;
+  }
+  .selector-remoto {
+    padding: 12px;
+  }
+  .paginas-selector > span {
+    flex-basis: 100%;
+  }
+  .password-form > .boton {
+    top: 30px;
+  }
+}

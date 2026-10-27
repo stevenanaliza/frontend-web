@@ -41,6 +41,7 @@ import { Motoristas } from "./Motoristas";
 import { Usuarios, DetalleUsuario } from "./Usuarios";
 import { Sucursales } from "./Sucursales";
 import { Evidencias } from "./evidencias";
+import { MiCuenta, NuevoUsuario } from "./GestionUsuarios";
 const iconos = [PackageSearch, Users, Building2, Truck, FileText];
 
 function Proteccion() {
@@ -237,6 +238,13 @@ function Estructura() {
               </small>
             </div>
           </div>
+          <Link
+            className="boton texto"
+            to="/mi-cuenta"
+            onClick={() => setMenu(false)}
+          >
+            Mi cuenta y contraseña
+          </Link>
           <CerrarSesion />
         </div>
       </aside>
@@ -398,6 +406,17 @@ export function App() {
               </ProteccionModulo>
             }
           />
+          <Route
+            path="/usuarios/nuevo"
+            element={
+              <ProteccionModulo
+                permisos={["usuario.administrar", "rol.asignar"]}
+              >
+                <NuevoUsuario />
+              </ProteccionModulo>
+            }
+          />
+          <Route path="/mi-cuenta" element={<MiCuenta />} />
           <Route
             path="/usuarios/:id"
             element={

@@ -37,6 +37,9 @@ import {
   useConsulta,
 } from "./componentes";
 import { EvidenciasSolicitud } from "./evidencias";
+import { OperacionesSolicitud } from "./OperacionesSolicitud";
+import { Exito } from "./formularios";
+import { useState } from "react";
 
 export function Solicitudes() {
   const [params, setParams] = useSearchParams();
@@ -364,6 +367,7 @@ function SolicitudesGrupo({
   );
 }
 export function DetalleSolicitud() {
+  const [mensaje, setMensaje] = useState("");
   const ubicacion = useLocation();
   const volver =
     typeof ubicacion.state?.volver === "string"
@@ -398,6 +402,14 @@ export function DetalleSolicitud() {
       ) : (
         datos && (
           <>
+            {mensaje && <Exito>{mensaje}</Exito>}
+            <OperacionesSolicitud
+              solicitud={datos}
+              actualizada={() => {
+                setMensaje("Solicitud actualizada por el servidor.");
+                recargar();
+              }}
+            />
             <Panel
               titulo="Información de la solicitud"
               extra={

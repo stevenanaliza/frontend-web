@@ -15,6 +15,35 @@ const ubicacion = nombreId.extend({
   longitud: decimal,
 });
 export const empresaSchema = nombreId.extend({ estado: z.string() });
+export const rolAsignableSchema = z.object({
+  codigo: z.string(),
+  nombre: z.string(),
+  descripcion: z.string(),
+  permite_alcance_global: z.boolean(),
+  permite_alcance_empresa: z.boolean(),
+  permite_alcance_sucursal: z.boolean(),
+});
+export const rolesAsignablesSchema = z.object({
+  resultados: z.array(rolAsignableSchema),
+});
+export const vehiculoSchema = z.object({
+  id: z.string(),
+  empresa_id: z.string().nullable(),
+  placa: z.string(),
+  tipo: z.string(),
+  marca: z.string().nullable(),
+  modelo: z.string().nullable(),
+  anio: z.number().int().nullable(),
+  estado: z.string(),
+});
+export const ubicacionEmpresaSchema = z.object({
+  id: z.string(),
+  empresa_id: z.string(),
+  estado: z.string(),
+  permite_origen: z.boolean(),
+  permite_destino: z.boolean(),
+  ubicacion: ubicacion.extend({ estado: z.string() }),
+});
 export const sucursalSchema = nombreId.extend({
   empresa_id: z.string(),
   codigo: z.string(),

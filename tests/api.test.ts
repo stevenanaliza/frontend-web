@@ -20,6 +20,151 @@ const memoria = () => {
   };
 };
 describe("Cliente de API y sesión", () => {
+  it("consulta directamente Django con Bearer, sin cookies, y recupera el JWT al recargar", async () => {
+    const storage = memoria();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json(tokens))
+      .mockResolvedValueOnce(json({ ok: true }));
+    await crearCliente(origen, storage, fetcher).iniciar(
+      "admin@example.test",
+      "prueba",
+    );
+    const recargado = crearCliente(origen, storage, fetcher);
+    expect(recargado.tieneSesion()).toBe(true);
+    await recargado.solicitar("/api/v1/usuarios/mi-perfil/");
+    expect(fetcher.mock.calls[1][0]).toBe(
+      `${origen}/api/v1/usuarios/mi-perfil/`,
+    );
+    expect(
+      fetcher.mock.calls.every(([, init]) => init?.credentials === "omit"),
+    ).toBe(true);
+    expect(
+      new Headers(fetcher.mock.calls[1][1]?.headers).get("Authorization"),
+    ).toBe("Bearer acceso-prueba");
+    expect(
+      new Headers(fetcher.mock.calls[0][1]?.headers).has("Authorization"),
+    ).toBe(false);
+  });
+  it("funciona en memoria si el navegador bloquea el almacenamiento", async () => {
+    const storage = {
+      getItem: () => {
+        throw Error();
+      },
+      setItem: () => {
+        throw Error();
+      },
+      removeItem: () => {
+        throw Error();
+      },
+    };
+    const cliente = crearCliente(
+      origen,
+      storage,
+      vi.fn<typeof fetch>().mockResolvedValue(json(tokens)),
+    );
+    await cliente.iniciar("admin@example.test", "prueba");
+    expect(cliente.tieneSesion()).toBe(true);
+    cliente.limpiar();
+    expect(cliente.tieneSesion()).toBe(false);
+  });
+  it("descarta credenciales almacenadas que no cumplen el contrato", () => {
+    const storage = memoria();
+    storage.setItem(
+      `vitago:corporate:${origen}:sesion`,
+      JSON.stringify({ token_acceso: "incompleto" }),
+    );
+    expect(crearCliente(origen, storage).tieneSesion()).toBe(false);
+    expect(storage.getItem(`vitago:corporate:${origen}:sesion`)).toBeNull();
+  });
+  it("una renovación antigua no borra una sesión iniciada mientras estaba pendiente", async () => {
+    let responder!: (response: Response) => void;
+    const nuevos = {
+      ...tokens,
+      token_acceso: "otra-cuenta",
+      token_refresco: "otro-refresco",
+    };
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        json({ ...tokens, expira_token_acceso_en: "2000-01-01T00:00:00Z" }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            responder = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(json(nuevos));
+    const storage = memoria();
+    const cliente = crearCliente(origen, storage, fetcher);
+    await cliente.iniciar("primera@example.test", "prueba");
+    const pendiente = cliente.solicitar("/api/v1/usuarios/mi-perfil/");
+    await cliente.iniciar("segunda@example.test", "prueba");
+    responder(json({}, 401));
+    await expect(pendiente).rejects.toMatchObject({ status: 401 });
+    expect(cliente.tieneSesion()).toBe(true);
+    expect(
+      JSON.parse(storage.getItem(`vitago:corporate:${origen}:sesion`)!),
+    ).toEqual(nuevos);
+  });
+  it("una renovación pendiente no recupera la sesión después de salir localmente", async () => {
+    let responder!: (response: Response) => void;
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        json({ ...tokens, expira_token_acceso_en: "2000-01-01T00:00:00Z" }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            responder = resolve;
+          }),
+      );
+    const storage = memoria();
+    const cliente = crearCliente(origen, storage, fetcher);
+    await cliente.iniciar("admin@example.test", "prueba");
+    const pendiente = cliente.solicitar("/api/v1/usuarios/mi-perfil/");
+    cliente.limpiar();
+    responder(json(tokens));
+    await expect(pendiente).rejects.toMatchObject({ status: 401 });
+    expect(cliente.tieneSesion()).toBe(false);
+    expect(storage.getItem(`vitago:corporate:${origen}:sesion`)).toBeNull();
+  });
+  it("descarta respuestas privadas de una sesión que terminó mientras se consultaba", async () => {
+    let responder!: (response: Response) => void;
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json(tokens))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            responder = resolve;
+          }),
+      );
+    const cliente = crearCliente(origen, memoria(), fetcher);
+    await cliente.iniciar("admin@example.test", "prueba");
+    const pendiente = cliente.solicitar("/api/v1/usuarios/mi-perfil/");
+    cliente.limpiar();
+    responder(json({ datos: "de la sesión anterior" }));
+    await expect(pendiente).rejects.toMatchObject({ status: 401 });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it("no repite operaciones tras una desconexión y permite salir localmente", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json(tokens))
+      .mockRejectedValueOnce(new TypeError("sin red"));
+    const storage = memoria();
+    const cliente = crearCliente(origen, storage, fetcher);
+    await cliente.iniciar("admin@example.test", "prueba");
+    await expect(
+      cliente.solicitar("/api/v1/accion/", { method: "POST", body: "{}" }),
+    ).rejects.toMatchObject({ status: 0 });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    cliente.limpiar();
+    expect(storage.getItem(`vitago:corporate:${origen}:sesion`)).toBeNull();
+  });
   it("el proxy local conserva la ruta, el Bearer y la separación de sesión por backend", async () => {
     const storage = memoria();
     const fetcher = vi

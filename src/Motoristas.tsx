@@ -14,6 +14,7 @@ import {
 } from "./admin-comunes";
 import { ErrorCampo, Etiqueta, Panel, estados, numero } from "./componentes";
 import { puedeVerReportes } from "./permisos";
+import { NuevoMotorista } from "./Altas";
 
 function EditarLimite({
   motorista,
@@ -124,6 +125,7 @@ function EditarLimite({
   );
 }
 export function Motoristas() {
+  const [nuevo, setNuevo] = useState(false);
   const { perfil } = useAuth();
   const [params] = useSearchParams();
   const [seleccion, setSeleccion] = useState<Motorista | null>(null);
@@ -141,7 +143,24 @@ export function Motoristas() {
         texto="Estado operativo, capacidad y límites calculados por el servidor."
         recargar={listado.recargar}
         cargando={listado.cargando}
+        accion={
+          perfil?.permisos.includes("repartidor.administrar") ? (
+            <button className="boton primario" onClick={() => setNuevo(!nuevo)}>
+              Crear motorista
+            </button>
+          ) : undefined
+        }
       />
+      {nuevo && (
+        <NuevoMotorista
+          cerrar={() => setNuevo(false)}
+          creado={() => {
+            setNuevo(false);
+            setMensaje("Perfil de motorista creado.");
+            listado.recargar();
+          }}
+        />
+      )}
       <Filtros empresa error={listado.error}>
         <label htmlFor="activo">
           Perfil

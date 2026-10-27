@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { ArrowLeft, Pencil, Check } from "lucide-react";
 import { useAuth } from "./auth";
 import { api, parsear } from "./api";
@@ -23,8 +23,11 @@ import {
   useConsulta,
 } from "./componentes";
 import type { z } from "zod";
+import { AsignarRol, RestablecerContrasena } from "./GestionUsuarios";
+import { Formulario, useOperacion } from "./formularios";
 
 export function Usuarios() {
+  const { perfil } = useAuth();
   const listado = usePaginaRemota("/api/v1/usuarios/", usuarioSchema);
   return (
     <>
@@ -33,6 +36,14 @@ export function Usuarios() {
         texto="Personas autorizadas y alcance de sus roles vigentes."
         recargar={listado.recargar}
         cargando={listado.cargando}
+        accion={
+          perfil?.permisos.includes("usuario.administrar") &&
+          perfil.permisos.includes("rol.asignar") ? (
+            <Link className="boton primario" to="/usuarios/nuevo">
+              Crear usuario
+            </Link>
+          ) : undefined
+        }
       />
       <Filtros />
       <Panel titulo="Usuarios en tu alcance">
@@ -229,7 +240,22 @@ function EdicionUsuario({
     </Panel>
   );
 }
-function HistorialRoles({ id }: { id: string }) {
+function HistorialRoles({
+  id,
+  actualizado,
+}: {
+  id: string;
+  actualizado: () => void;
+}) {
+  const { perfil } = useAuth();
+  const [revocar, setRevocar] = useState<{ id: string; nombre: string } | null>(
+    null,
+  );
+  const operacion = useOperacion();
+  const administra = Boolean(
+    perfil?.permisos.includes("usuario.administrar") &&
+    perfil.permisos.includes("rol.asignar"),
+  );
   const ruta = `/api/v1/usuarios/${encodeURIComponent(id)}/roles/`;
   const roles = useConsulta(
     async (signal) =>
@@ -255,6 +281,7 @@ function HistorialRoles({ id }: { id: string }) {
                       <th>Estado</th>
                       <th>Asignación (UTC)</th>
                       <th>Revocación (UTC)</th>
+                      {administra && <th>Acción</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -284,6 +311,20 @@ function HistorialRoles({ id }: { id: string }) {
                             ? fechaHora(r.revocado_en, "UTC")
                             : "Sin revocación"}
                         </td>
+                        {administra && (
+                          <td>
+                            {r.activo && (
+                              <button
+                                className="boton secundario"
+                                onClick={() =>
+                                  setRevocar({ id: r.id, nombre: r.rol.nombre })
+                                }
+                              >
+                                Revocar {r.rol.nombre}
+                              </button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -298,14 +339,51 @@ function HistorialRoles({ id }: { id: string }) {
           </>
         )
       )}
+      {revocar && (
+        <Formulario
+          titulo={`Revocar rol: ${revocar.nombre}`}
+          operacion={operacion}
+          cancelar={() => setRevocar(null)}
+          textoGuardar="Confirmar revocación"
+          aviso={
+            <p className="aviso">
+              La revocación conserva el historial y cierra las sesiones del
+              usuario. El servidor protege los últimos administradores y valida
+              la delegación.
+            </p>
+          }
+          enviar={async () => {
+            await api.solicitar(
+              `/api/v1/usuarios/${encodeURIComponent(id)}/roles/${encodeURIComponent(revocar.id)}/`,
+              { method: "DELETE" },
+            );
+            setRevocar(null);
+            if (perfil?.usuario.id === id) await api.limpiar();
+            else {
+              roles.recargar();
+              actualizado();
+            }
+          }}
+        >
+          <label className="confirmacion">
+            <input type="checkbox" required />
+            Confirmo la revocación de este rol.
+          </label>
+        </Formulario>
+      )}
     </Panel>
   );
 }
 export function DetalleUsuario() {
   const { id = "" } = useParams();
   const { perfil } = useAuth();
+  const ubicacion = useLocation();
   const [editando, setEditando] = useState(false);
-  const [mensaje, setMensaje] = useState("");
+  const [mensaje, setMensaje] = useState(
+    typeof ubicacion.state?.mensaje === "string" ? ubicacion.state.mensaje : "",
+  );
+  const [nuevoRol, setNuevoRol] = useState(false),
+    [password, setPassword] = useState(false);
   const ruta = `/api/v1/usuarios/${encodeURIComponent(id)}/`;
   const usuario = useConsulta(
     async (signal) =>
@@ -398,7 +476,57 @@ export function DetalleUsuario() {
                 </dl>
               </Panel>
             )}
-            <HistorialRoles id={id} />
+            {perfil?.permisos.includes("usuario.administrar") && (
+              <div className="acciones separacion-panel">
+                <button
+                  className="boton secundario"
+                  onClick={() => setPassword(!password)}
+                >
+                  Restablecer contraseña
+                </button>
+                {perfil.permisos.includes("rol.asignar") && (
+                  <button
+                    className="boton secundario"
+                    onClick={() => setNuevoRol(!nuevoRol)}
+                  >
+                    Asignar rol
+                  </button>
+                )}
+              </div>
+            )}
+            {password && (
+              <RestablecerContrasena
+                usuarioId={id}
+                nombre={`${usuario.datos.nombres} ${usuario.datos.apellidos}`}
+                cerrar={() => setPassword(false)}
+                guardado={() => {
+                  setPassword(false);
+                  setMensaje(
+                    "Contraseña restablecida. Las sesiones anteriores fueron revocadas.",
+                  );
+                }}
+              />
+            )}
+            {nuevoRol && (
+              <AsignarRol
+                usuarioId={id}
+                empresaId={usuario.datos.empresa_id}
+                sucursalId={usuario.datos.sucursal_id}
+                cerrar={() => setNuevoRol(false)}
+                guardado={() => {
+                  setNuevoRol(false);
+                  setMensaje("Rol asignado.");
+                  usuario.recargar();
+                }}
+              />
+            )}
+            <HistorialRoles
+              id={id}
+              actualizado={() => {
+                setMensaje("Rol revocado.");
+                usuario.recargar();
+              }}
+            />
           </>
         )
       )}

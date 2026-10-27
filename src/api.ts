@@ -1,51 +1,7 @@
-import { z } from "zod";
+import { ApiError, ContratoError, parsear } from "./errores";
+export { ApiError, ContratoError, parsear } from "./errores";
 import { tokensSchema, type Tokens } from "./contratos";
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public campos: Record<string, unknown> = {},
-    public espera = 0,
-  ) {
-    const mensajes: Record<number, string> = {
-      0: "No se pudo conectar con el servidor. Comprueba tu conexión y la disponibilidad del servicio.",
-      400: "Revisa los campos indicados.",
-      401: "La sesión no está autorizada. Inicia sesión nuevamente.",
-      403: "No tienes permisos para consultar esta información.",
-      404: "El recurso no existe o no está disponible en tu alcance.",
-      409: "La operación entra en conflicto con una regla vigente.",
-      429: "Se alcanzó el límite de intentos. Espera antes de volver a intentar.",
-    };
-    super(
-      status >= 500
-        ? (mensajes[status] ??
-            "El servidor no pudo completar la operación. Intenta más tarde.")
-        : typeof campos.detail === "string"
-          ? campos.detail
-          : (mensajes[status] ??
-            `No se pudo completar la operación (HTTP ${status}).`),
-    );
-  }
-}
-export class ContratoError extends Error {
-  constructor(public rutas: string[]) {
-    super("La respuesta del servidor no coincide con el contrato esperado.");
-  }
-}
-export function parsear<T>(schema: z.ZodType<T>, valor: unknown): T {
-  const resultado = schema.safeParse(valor);
-  if (!resultado.success)
-    throw new ContratoError(
-      [
-        ...new Set(
-          resultado.error.issues.map(
-            (issue) => issue.path.join(".") || "respuesta",
-          ),
-        ),
-      ].slice(0, 8),
-    );
-  return resultado.data;
-}
 export function crearCliente(
   origen: string,
   storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">,
@@ -75,6 +31,7 @@ export function crearCliente(
   const clave = `vitago:corporate:${base}:sesion`;
   let tokens: Tokens | null = null;
   let renovando: Promise<void> | null = null;
+  let versionSesion = 0;
   let alPerderSesion = () => {};
   try {
     const guardado = storage?.getItem(clave);
@@ -96,6 +53,8 @@ export function crearCliente(
     }
   }
   function limpiar() {
+    versionSesion++;
+    renovando = null;
     guardar(null);
     alPerderSesion();
   }
@@ -183,22 +142,27 @@ export function crearCliente(
       limpiar();
       throw new ApiError(401);
     }
-    renovando = (async () => {
+    const version = versionSesion;
+    const proceso = (async () => {
       try {
         const datos = await enviar("/api/v1/autenticacion/renovar/", {
           method: "POST",
           body: JSON.stringify({ token_refresco: actuales.token_refresco }),
         });
-        if (tokens !== actuales) throw new ApiError(401);
+        if (versionSesion !== version || tokens !== actuales)
+          throw new ApiError(401);
         guardar(parsear(tokensSchema, datos));
       } catch (error) {
-        limpiar();
+        if (versionSesion === version) limpiar();
         throw error;
-      } finally {
-        renovando = null;
       }
     })();
-    return renovando;
+    renovando = proceso;
+    try {
+      return await proceso;
+    } finally {
+      if (renovando === proceso) renovando = null;
+    }
   }
   async function solicitar(
     ruta: string,
@@ -206,26 +170,39 @@ export function crearCliente(
     binario = false,
   ) {
     if (!tokens) throw new ApiError(401);
+    const version = versionSesion;
     let renovo = false;
     if (Date.parse(tokens.expira_token_acceso_en) <= Date.now()) {
       await renovar();
       renovo = true;
     }
+    if (versionSesion !== version) throw new ApiError(401);
     const usado = tokens?.token_acceso;
     try {
-      return await enviar(ruta, init, true, binario);
+      const datos = await enviar(ruta, init, true, binario);
+      if (versionSesion !== version) throw new ApiError(401);
+      return datos;
     } catch (error) {
+      if (versionSesion !== version) throw error;
       if (!(error instanceof ApiError) || error.status !== 401) throw error;
       // Únicamente GET puede repetirse. Nunca reintentar automáticamente una mutación.
-      if ((init.method ?? "GET") !== "GET" || !tokens || renovo) {
+      if ((init.method ?? "GET").toUpperCase() !== "GET" || !tokens || renovo) {
         limpiar();
         throw error;
       }
       if (tokens?.token_acceso === usado) await renovar();
+      if (versionSesion !== version) throw new ApiError(401);
       try {
-        return await enviar(ruta, init, true, binario);
+        const datos = await enviar(ruta, init, true, binario);
+        if (versionSesion !== version) throw new ApiError(401);
+        return datos;
       } catch (segundo) {
-        if (segundo instanceof ApiError && segundo.status === 401) limpiar();
+        if (
+          versionSesion === version &&
+          segundo instanceof ApiError &&
+          segundo.status === 401
+        )
+          limpiar();
         throw segundo;
       }
     }
@@ -245,17 +222,22 @@ export function crearCliente(
       alPerderSesion = callback;
     },
     iniciar: async (correo: string, contrasena: string) => {
+      const version = ++versionSesion;
+      renovando = null;
+      guardar(null);
       const datos = await enviar("/api/v1/autenticacion/iniciar-sesion/", {
         method: "POST",
         body: JSON.stringify({ correo, contrasena }),
       });
+      if (versionSesion !== version) throw new ApiError(401);
       guardar(parsear(tokensSchema, datos));
     },
     cerrar: async () => {
+      const version = versionSesion;
       await solicitar("/api/v1/autenticacion/cerrar-sesion/", {
         method: "POST",
       });
-      limpiar();
+      if (versionSesion === version) limpiar();
     },
   };
 }

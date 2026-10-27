@@ -1,6 +1,8 @@
 # VitaGo Corporate · Panel administrativo
 
-Frontend independiente en React, TypeScript y Vite. No modifica el proyecto Flutter ni el backend Django. El contrato de integración es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), especialmente las secciones 0.39.0 y 0.40.0.
+Repositorio `frontend-web`: panel en React, TypeScript y Vite que consume directamente el backend Django mediante JWT. La publicación contiene archivos estáticos; no requiere un servidor Node de sesiones ni cookies de autenticación del panel. Node y npm se utilizan para desarrollar, compilar y ejecutar las pruebas.
+
+El contrato oficial es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), especialmente 0.39.0 y 0.40.0. El proyecto Flutter y el backend Django permanecen sin modificaciones.
 
 ## Iniciar el proyecto
 
@@ -8,115 +10,88 @@ Requiere Node.js 22.12 o superior y npm. Se verificó con Node.js 24.18.0.
 
 ```powershell
 npm ci
-Copy-Item .env.example .env.local
-```
-
-En `.env.local`, colocar **el origen real del backend Corporate**, sin `/api/v1/`, rutas, parámetros ni credenciales:
-
-```dotenv
-VITE_API_URL=https://backend-corporate.ejemplo.com
-```
-
-Esa dirección es ilustrativa; el proyecto no trae una dirección operativa preconfigurada. Las variables `VITE_*` son públicas: no colocar contraseñas, tokens o claves privadas. Reiniciar Vite al cambiarlas.
-
-Para desarrollo local cuando Django no habilita CORS, agregar `VITE_API_PROXY=true` en `.env.local`. El navegador solicita `/api/v1/` al servidor de Vite y este reenvía las peticiones al origen de `VITE_API_URL`. Se utiliza el [proxy de desarrollo de Vite](https://vite.dev/config/server-options#server-proxy); solo está activo en `npm run dev`. La compilación de producción continúa utilizando directamente el origen configurado y requiere CORS correcto o un proxy de alojamiento definido por infraestructura.
-
-```powershell
+if (!(Test-Path .env.local)) { Copy-Item .env.example .env.local }
 npm run dev
 ```
 
-Abrir `http://127.0.0.1:5173`. Sin configuración, se muestra una explicación y se deshabilita el acceso. No hay modo de demostración ni sustitución de fallos por datos ficticios.
+Configurar `.env.local` con el origen del backend Corporate, **sin `/api/v1/`**, rutas, parámetros ni credenciales:
+
+```dotenv
+VITE_API_URL=https://backend-corporate.ejemplo.com
+VITE_API_PROXY=false
+```
+
+La dirección es ilustrativa. Reiniciar Vite al cambiar las variables. Abrir `http://127.0.0.1:5173`. Sin URL configurada, se explica el problema y se deshabilita el acceso; no hay datos ficticios para ocultar errores.
+
+Para el backend local existente puede conservarse `VITE_API_PROXY=true`: Vite reenvía las peticiones durante `npm run dev` para facilitar el desarrollo sin CORS. Este proxy no almacena sesiones, no se compila y no se utiliza en Vercel. Con `false`, el navegador consulta Django directamente también en desarrollo.
+
+## Publicar en Vercel
+
+El archivo `.env.production` configura el backend Corporate publicado en `https://vitago.onrender.com`. Vite lo utiliza al compilar; las variables del alojamiento tienen prioridad. El panel público confirmado es `https://frontend-web-eight-self.vercel.app`.
+
+1. Configurar `VITE_API_URL` con el origen HTTPS del backend Corporate público.
+2. Seleccionar Vite, compilación `npm run build` y directorio `dist`. [vercel.json](./vercel.json) incluye estos valores y las rutas internas de React.
+3. Volver a desplegar después de cambiar la URL: Vite la incorpora durante la compilación.
+4. Autorizar el origen exacto del panel en el CORS del backend y verificar el acceso desde el dominio publicado.
+
+No se ejecuta `npm start` ni se requieren variables privadas de un servidor del panel. `VITE_WEB_SESSION`, `VITE_WEB_ORIGIN`, `BACKEND_URL` y `WEB_PUBLIC_ORIGIN` dejaron de utilizarse y pueden retirarse de la configuración del frontend. Ninguna variable `VITE_*` debe contener contraseñas, tokens o claves privadas.
+
+Ver [deploy/README.md](./deploy/README.md) para CORS, configuración y comprobaciones.
 
 ## Alcance implementado
 
-- Inicio de sesión con `correo` y `contrasena`; recuperación de sesión al recargar la pestaña; consulta de perfil y permisos; renovación del par de tokens; cierre remoto de sesión.
-- Protección de las rutas y del panel. Los permisos operativos de solicitantes o motoristas por sí solos no permiten entrar. Los reportes exigen conjuntamente `repartidor.ver`, `reporte.ver`, `solicitud.ver`, `jornada.ver` y `evidencia.ver`.
-- Listado de resúmenes por motorista con fecha operativa, perfiles activos/inactivos, UUID de empresa/motorista y 20, 50 o 100 filas por página. Los filtros avanzados usan UUID porque no se presupone acceso a catálogos adicionales.
-- Paginación remota en lista y lecturas; solo se solicita la página visible. No se siguen enlaces arbitrarios del servidor con tokens: se solicita la siguiente página al mismo endpoint configurado.
-- Detalle de motorista con actividad del día, cantidades conocidas y faltantes, kilómetros medidos/consolidados y estado incompleto, estadísticas y todas las lecturas de temperatura.
-- Carga actual separada del día histórico, con límites y disponibilidad calculados por el servidor, sin reinterpretar su capacidad.
-- Presentación de ceros y `null` por separado; no se suman hitos de solicitudes ni se diagnostican temperaturas.
-- Estados de carga, vacío, error y falta de permisos. Errores de campo conservados y diferenciación de HTTP 400/401/403/404/409/429/5xx frente a problemas de conexión.
-- Solicitudes agrupadas por sucursal o solicitante, incluyendo «Sin sucursal», creador de cada solicitud, filtros de estado/prioridad, detalle, artículos e historial. Grupos y solicitudes se paginan por separado en el servidor.
-- Directorio de motoristas, carga actual y edición del límite de tubos con motivo, exclusivamente con `repartidor.administrar`. La respuesta del backend confirma el nuevo límite; el frontend no recalcula la capacidad.
-- Directorio y detalle de usuarios con historial de roles. Edición de nombres, apellidos, teléfono y estado únicamente con `usuario.administrar`; las reglas de delegación y protección de cuentas las aplica el backend.
-- Directorio de sucursales para la empresa elegida. Si el perfil no indica una empresa, puede seleccionarse por identificador y, con `empresa.ver`, mediante el catálogo paginado.
-- Evidencias por solicitud, metadatos y temperatura; imágenes binarias mediante Bearer y object URLs temporales liberadas al cerrar o navegar.
+| Módulo            | Funciones                                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Acceso            | Correo/contraseña, recuperación al recargar, perfil, permisos, rotación JWT y cierre de sesión                    |
+| Resúmenes diarios | Fecha operativa, filtros, paginación remota, detalle del motorista y temperaturas                                 |
+| Solicitudes       | Agrupaciones por sucursal o solicitante, creador, filtros, detalle, artículos e historial                         |
+| Operaciones       | Asignar/reasignar, corregir tubos con motivo y cancelar según estado y permisos                                   |
+| Evidencias        | Metadatos e imágenes privadas solicitadas con Bearer y object URLs temporales                                     |
+| Motoristas        | Directorio, carga actual, límite autorizado, alta de perfil y motocicleta                                         |
+| Usuarios          | Alta, detalle, edición, catálogo de roles delegables, asignación/revocación y contraseñas                         |
+| Sucursales        | Directorio y alta con ubicación aprobada de la empresa                                                            |
+| Mi cuenta         | Datos, contraseña propia cuando el restablecimiento administrativo está autorizado y cierre de todas las sesiones |
 
-Las altas de usuarios, sucursales y motoristas, la asignación/revocación de roles y la asignación de servicios siguen pendientes. Esta entrega habilita consultas y las dos ediciones indicadas; el historial de roles es de consulta. Ver [revisión y siguientes pasos](./REVISION_FRONTEND.md).
+Las rutas y acciones se protegen por permisos. Los solicitantes y motoristas sin permisos administrativos no pueden entrar. Los reportes requieren conjuntamente `repartidor.ver`, `reporte.ver`, `solicitud.ver`, `jornada.ver` y `evidencia.ver`. Django decide siempre la autorización y el alcance definitivos.
 
-La paleta Corporate y la imagen de marca se tomaron del proyecto móvil existente mediante lectura; el móvil permanece intacto.
+Se distinguen actividad del día y carga actual; cero y `null`; kilómetros medidos, consolidados e incompletos de jornadas cerradas. Los hitos y artículos no se suman para inventar cantidades. La capacidad y los límites los calcula el backend. Las tablas y selectores consultan una página del servidor cada vez.
 
-## Endpoints utilizados
+Las respuestas se validan con Zod. Los errores por campo conservan los valores del formulario; se distinguen HTTP 400, 401, 403, 404, 409, 429 y 5xx de fallos de conexión. Ninguna operación de escritura se repite automáticamente.
 
-| Método | Ruta                                                          | Uso                                 |
-| ------ | ------------------------------------------------------------- | ----------------------------------- |
-| POST   | `/api/v1/autenticacion/iniciar-sesion/`                       | Autenticación local                 |
-| POST   | `/api/v1/autenticacion/renovar/`                              | Rotación del par de tokens          |
-| POST   | `/api/v1/autenticacion/cerrar-sesion/`                        | Revocación de la sesión actual      |
-| GET    | `/api/v1/usuarios/mi-perfil/`                                 | Perfil, roles y permisos            |
-| GET    | `/api/v1/repartidores/resumenes/`                             | Página de resúmenes                 |
-| GET    | `/api/v1/repartidores/{id}/resumen/`                          | Detalle administrativo              |
-| GET    | `/api/v1/repartidores/{id}/temperaturas/`                     | Página de lecturas                  |
-| GET    | `/api/v1/repartidores/`                                       | Directorio de motoristas            |
-| PATCH  | `/api/v1/repartidores/{id}/`                                  | Cambio de límite con motivo         |
-| GET    | `/api/v1/solicitudes/agrupaciones/`                           | Grupos por sucursal o solicitante   |
-| GET    | `/api/v1/solicitudes/`                                        | Página del grupo seleccionado       |
-| GET    | `/api/v1/solicitudes/{id}/`                                   | Detalle e historial de la solicitud |
-| GET    | `/api/v1/solicitudes/{id}/evidencias/`                        | Página de evidencias                |
-| GET    | `/api/v1/solicitudes/{id}/evidencias/{evidencia_id}/archivo/` | Imagen protegida                    |
-| GET    | `/api/v1/usuarios/`                                           | Directorio de usuarios              |
-| GET    | `/api/v1/usuarios/{id}/`                                      | Perfil administrativo de usuario    |
-| PATCH  | `/api/v1/usuarios/{id}/`                                      | Edición autorizada del usuario      |
-| GET    | `/api/v1/usuarios/{id}/roles/`                                | Historial de roles                  |
-| GET    | `/api/v1/organizaciones/empresas/`                            | Selector paginado de empresa        |
-| GET    | `/api/v1/organizaciones/empresas/{id}/sucursales/`            | Directorio de sucursales            |
+## Sesión JWT y contraseñas
 
-Las respuestas se validan con Zod según el documento. Una respuesta incompatible se informa como problema de contrato; no se completan campos ausentes con ceros. Los permisos del perfil permiten construir la interfaz, pero no describen la relación individual permiso/alcance de cada rol: el backend determina el alcance efectivo, filtra y puede devolver 403/404.
+React llama a `iniciar-sesion/` de Django con `correo` y `contrasena`. Guarda juntos el access token, el refresh token, sus expiraciones y el identificador de sesión en `sessionStorage`, separados por origen del backend Corporate. No se guardan contraseñas ni se utiliza `localStorage`. Si el navegador bloquea el almacenamiento, la sesión permanece solo en memoria y no se recupera tras recargar.
 
-## Sesión web y decisiones pendientes
+Las consultas protegidas llevan `Authorization: Bearer`. Las peticiones usan `credentials: omit`, sin autenticación por cookies. Al recargar, se vuelve a consultar `mi-perfil/`; no se confía en permisos persistidos.
 
-El contrato exige almacenamiento seguro del sistema operativo, descrito para clientes nativos. El navegador no ofrece a esta SPA ese mecanismo. Para recuperar la sesión en una recarga se usa **`sessionStorage` de la pestaña**, separado por origen del backend y producto; no se usa `localStorage`, ni se registran tokens o contraseñas. Si el navegador impide persistir, la sesión permanece únicamente en memoria y no sobrevive a la recarga. `sessionStorage` es accesible por JavaScript del mismo origen y **no equivale a almacenamiento seguro nativo**.
+La renovación usa las expiraciones recibidas de Django, sustituye conjuntamente ambos tokens y coordina las peticiones concurrentes de esta pestaña con una sola renovación. Solo un GET puede repetirse una vez tras un 401. Un fallo de renovación elimina las credenciales y exige iniciar sesión. Las respuestas pendientes de una sesión anterior no pueden restaurarla ni sobrescribir un acceso nuevo.
 
-Antes de desplegar en producción debe acordarse el contrato específico para persistencia web (por ejemplo, sesión mediante cookies HttpOnly/Secure o un BFF). No se han inventado esos endpoints ni modificado Django. La renovación se coordina dentro de la instancia del panel; la coordinación de sesiones clonadas en varias pestañas no está cubierta. Usar una sola pestaña por sesión hasta definir esa política.
+La sesión se conserva en la pestaña. No se ofrece una sesión compartida automática entre pestañas; Django determina la revocación de las demás sesiones y cualquier consulta posterior con credenciales revocadas exige nuevo acceso. Los JWT son accesibles al JavaScript de la aplicación, como corresponde a este cliente directo.
 
-Las expiraciones se toman de las respuestas, sin duraciones JWT fijas. Un fallo de renovación limpia los tokens y pide iniciar sesión. Un GET con 401 puede renovarse y repetirse una sola vez; las mutaciones nunca se repiten automáticamente. Un 429 de login usa la espera recibida con reloj monotónico. Si falla el cierre remoto, se informa y se ofrece salir localmente; salir localmente no confirma revocación en el servidor.
+El cierre actual utiliza `cerrar-sesion/` y elimina las credenciales tras el 204. Si no hay conexión, la pantalla permite salir localmente, sin afirmar que Django haya revocado la sesión. El cierre de todas las sesiones y el cambio autorizado de contraseña propia también eliminan las credenciales locales.
 
-No se implementa restablecimiento público de contraseña: el contrato documenta un restablecimiento administrativo, no una API pública de recuperación. Si Corporate cambia de proveedor `LOCAL` a `JWT_CORPORATIVO`, hará falta documentar su flujo de acceso web/SSO antes de sustituir este login.
+El contrato ofrece restablecimiento administrativo de contraseña, que revoca las sesiones. No ofrece recuperación pública por correo ni cambio personal con contraseña anterior; no se inventan esos endpoints. Ver [contratos comprobados](./CONTRATOS_WEB_VERIFICADOS.md).
 
 ## Verificación
 
 ```powershell
 npm test
-npm run test:e2e
 npm run build
+npm run test:e2e
 npm run format:check
 ```
 
-Las pruebas de navegador usan Google Chrome instalado (`channel: chrome`) y arrancan Vite en el puerto 5174 con un origen `.test` interceptado por Playwright. Nunca usan las bases Corporate o Network. Las respuestas ilustrativas se extraen del documento oficial **solo dentro de las pruebas**. Las capturas generadas en `artifacts/` contienen datos de prueba, no datos operativos.
+Las pruebas cubren contratos, permisos, errores, paginación y operaciones administrativas. Los escenarios de sesión sirven una compilación estática y acceden a una API HTTP de prueba en otro origen: comprueban CORS, Bearer, recuperación, renovación, salida y cambio de contraseña sin cookies ni servidor de sesiones. Las pruebas de escritura no modifican bases operativas.
 
-Se cubren rotación de tokens con solicitudes concurrentes, límites de reintento, errores HTTP y por campo, permisos conjuntos, denegación a cuentas operativas, navegación, filtros, páginas remotas, recuperación al recargar, cierre de sesión, desconocidos frente a cero y diseño en 1440/1024/768/375 px.
+Resultado de esta adaptación: **35 pruebas unitarias y 33 escenarios de navegador aprobados**, además de compilación y formato.
 
-Verificación del 2026-10-27: **28 pruebas unitarias y 18 escenarios de navegador aprobados**. Se comprobaron contratos, filtros, paginación, acceso restringido, imágenes privadas, actualización de límites y usuarios, errores por campo sin reintentos y conservación de los valores del formulario. Las capturas incluyen acceso, reportes, solicitudes, motoristas, usuarios y sucursales en escritorio y tablet. Compilación de producción y formato comprobados.
+Las capturas en `artifacts/` contienen datos de prueba. Se comprobó desde el dominio público de Vercel que Django responde a salud, perfil sin sesión y login vacío con CORS correcto. Falta publicar esta actualización y verificar el acceso con una cuenta administrativa real. Ver [diagnóstico de conexión](./deploy/README.md). No se han publicado cambios externos desde esta entrega.
 
-**Configuración local actual:** el usuario confirmó `http://127.0.0.1:8001/api/v1/` como URL de Corporate. Se guardaron `VITE_API_URL=http://127.0.0.1:8001` y `VITE_API_PROXY=true` en `.env.local` (excluido de Git); el cliente agrega `/api/v1/` automáticamente y utiliza el proxy durante desarrollo.
-
-**Estado de integración real:** Corporate ya responde. Se verificaron a través del proxy salud 200 con `servicio=VitaGo Corporate`, login vacío 400 con errores de `correo` y `contrasena`, y respuestas 401 sin credenciales en resúmenes, motoristas, agrupaciones y usuarios. El usuario confirmó que inició sesión. La automatización de su ventana Chrome se detuvo porque no pudo identificar con seguridad la URL actual: **no se validaron de forma independiente sus datos autenticados ni se realizaron ediciones en registros reales**. Las pruebas de las nuevas operaciones se ejecutaron con respuestas aisladas del contrato, sin acceder a las bases operativas.
-
-**Diagnóstico local de CORS:** al estar disponible el backend, OPTIONS devolvió 200 con metadatos de DRF, pero sin `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods` ni `Access-Control-Allow-Headers`. El navegador no podía continuar el login directo entre los puertos 5173 y 8001. El proxy de Vite resuelve la conexión local dentro del proyecto web; no se modificó Django. La comprobación anterior de falta de conexión quedó superada al arrancar el servicio.
-
-## Despliegue
+Para revisar la compilación localmente:
 
 ```powershell
 npm run build
+npm run preview
 ```
 
-Publicar `dist/` en el alojamiento elegido. Configurar la reescritura de rutas de la SPA hacia `index.html` para permitir recargar enlaces de detalle. La URL del backend se incorpora al compilar: Corporate y Network deben mantener compilaciones, orígenes y configuraciones independientes. Este proyecto está destinado a Corporate y no ofrece un selector para mezclar entornos.
-
-Si el backend tiene otro origen, su infraestructura debe permitir el origen web autorizado y los encabezados `Authorization` y `Content-Type`, además de las solicitudes OPTIONS correspondientes. Exponer `Retry-After` si se quiere leer ese encabezado desde el navegador; el cuerpo `segundos_espera` también está contemplado. El frontend no puede corregir CORS ni habilitar proveedores de autenticación desde el navegador. En producción usar HTTPS y acordar la política de sesión web descrita arriba.
-
-Las fuentes DM Sans y Manrope se solicitan a Google Fonts, con alternativas locales si no están disponibles. Los colores de marca se centralizan en las variables CSS de `src/styles.css`.
-#   f r o n t e n d - w e b  
- #   f r o n t e n d - w e b  
- #   f r o n t e n d - w e b  
- 
+Corporate y Network mantienen dominios, bases, sesiones y configuración independientes. Se conserva la identidad Corporate, con la marca del móvil, Manrope y DM Sans y alternativas locales. Ver [revisión](./REVISION_FRONTEND.md).
