@@ -118,4 +118,5 @@ Si el backend tiene otro origen, su infraestructura debe permitir el origen web 
 Las fuentes DM Sans y Manrope se solicitan a Google Fonts, con alternativas locales si no están disponibles. Los colores de marca se centralizan en las variables CSS de `src/styles.css`.
 #   f r o n t e n d - w e b  
  #   f r o n t e n d - w e b  
+ #   f r o n t e n d - w e b  
  
