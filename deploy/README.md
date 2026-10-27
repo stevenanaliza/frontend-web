@@ -65,7 +65,7 @@ El acceso por correo y contraseña usa el proveedor `LOCAL` documentado. Corpora
 
 Las pruebas automatizadas comprueban el cliente compilado contra una API HTTP aislada con CORS. El acceso administrativo real y las operaciones sobre datos reales requieren una sesión autorizada; no se afirma que estén verificados en el despliegue público.
 
-## Diagnóstico público · 2026-10-27
+## Diagnóstico público previo · 2026-10-27
 
 URLs confirmadas por el usuario:
 
@@ -84,7 +84,28 @@ Comprobaciones efectuadas sin cuenta, contraseña ni tokens reales:
 | JavaScript publicado `index-8NO9sAKc.js`                               | Cliente inicializado con origen vacío; falta `VITE_API_URL` en esa compilación |
 | Abrir `/mi-cuenta` directamente en el despliegue actual                | 404; falta publicar la reescritura de rutas de `vercel.json`                   |
 
-La copia local ya dispone de `.env.production`, validación de configuración y `vercel.json`. Falta publicar estos cambios en el proyecto de Vercel y probar el inicio de sesión real. Si se publica a partir de GitHub, deben incluirse también los módulos del frontend pendientes de subir; no basta con volver a desplegar un commit antiguo sin esos archivos.
+Este diagnóstico corresponde al despliegue anterior. Los cambios de `.env.production`, validación de configuración, `vercel.json` y todos los módulos pendientes del frontend se publicaron en el commit `1e39bf12cd463d38dc63a3f26f67d2685cb2e0be`. La publicación y las comprobaciones siguientes resuelven los problemas de URL y rutas identificados arriba.
+
+## Publicación verificada · 2026-10-27
+
+Proyecto `frontend-web`, equipo `vita-go`. Despliegue de producción `dpl_7BETR9PpK5dX7z9JyuZgEfttG334`, estado `READY`, asignado a `https://frontend-web-eight-self.vercel.app`.
+
+El primer intento del commit falló porque `VITE_API_URL` en Vercel sustituía el archivo preparado por un origen HTTP. Se corrigieron las variables de producción a `VITE_API_URL=https://vitago.onrender.com` y `VITE_API_PROXY=false`, y se volvió a desplegar el mismo commit. La compilación remota terminó correctamente; publica `index-Dl0u1akA.js`, que incorpora el origen HTTPS de Django.
+
+Comprobación con Chrome aislado, sin credenciales reales:
+
+| Comprobación                                                      | Resultado                                                                             |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Apertura directa de `/`, `/mi-cuenta`, `/usuarios` y `/resumenes` | HTTP 200; React muestra el acceso cuando no hay sesión                                |
+| Configuración del cliente                                         | Origen de Django presente; sin aviso de configuración pendiente                       |
+| Salud desde el origen público del panel                           | HTTP 200, servicio `VitaGo Corporate`, JSON legible                                   |
+| Perfil sin Bearer desde ese navegador                             | HTTP 401, JSON legible                                                                |
+| Login con JSON vacío desde ese navegador                          | HTTP 400, errores `correo` y `contrasena` legibles; el navegador permite el preflight |
+| Errores de ejecución de la página                                 | Ninguno durante la comprobación                                                       |
+
+Antes de publicar pasaron la compilación, 35 pruebas unitarias, 33 pruebas de navegador y la revisión de formato. La consulta de logs de errores y fallos del despliegue en los últimos 15 minutos no devolvió registros. El proyecto no tiene drains configurados; Vercel sirve archivos estáticos y Django atiende la API.
+
+No se modificaron el backend ni el móvil. Sigue pendiente comprobar el acceso con una cuenta administrativa real y las operaciones protegidas sobre datos reales; la renovación y el cierre JWT sí están cubiertos por las pruebas aisladas.
 
 ## Desarrollo local
 
