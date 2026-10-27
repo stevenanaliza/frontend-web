@@ -1,0 +1,457 @@
+/* Directorios y trazabilidad: estructura compartida de los módulos administrativos. */
+.acciones,
+.acciones-celda,
+.grupo-modo,
+.acciones-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.acciones-celda {
+  gap: 6px;
+}
+.acciones-celda .boton {
+  font-size: 12px;
+  min-height: 40px;
+}
+.grupo-modo {
+  margin: 0 0 20px;
+}
+.grupo-modo .boton {
+  min-width: 150px;
+}
+.seccion-grupo {
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+.seccion-grupo .pagina-cabecera h1 {
+  font-size: 24px;
+}
+.seccion-grupo .pagina-cabecera h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+.app-principal main:focus {
+  outline: none;
+}
+.fila-seleccionada {
+  background: #eef2f8;
+}
+.celda-texto {
+  white-space: normal;
+  min-width: 175px;
+  max-width: 310px;
+  line-height: 1.6;
+}
+.rol-linea {
+  display: block;
+  margin: 4px 0 10px;
+}
+.rol-linea:last-child {
+  margin-bottom: 0;
+}
+.separacion-panel {
+  margin-top: 24px;
+}
+.datos-detalle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin: 0;
+  padding: 4px 22px 16px;
+}
+.datos-detalle > div {
+  padding: 18px 12px 18px 0;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.datos-detalle dt {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.datos-detalle dd {
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 500;
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.datos-detalle dd small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.historial {
+  list-style: none;
+  margin: 0;
+  padding: 8px 24px;
+}
+.historial li {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.historial li:last-child {
+  border: 0;
+}
+.historial strong {
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.historial time {
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.selector-empresa {
+  padding: 24px;
+}
+.selector-empresa p {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 10px;
+}
+.selector-empresa form {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.selector-empresa .campo-form {
+  flex: 1;
+  max-width: 400px;
+  min-width: 200px;
+}
+.lista-empresas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 20px 0;
+}
+.consulta-evidencia {
+  display: flex;
+  align-items: flex-end;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.consulta-evidencia .campo-form {
+  flex: 1;
+  max-width: 440px;
+  min-width: 200px;
+}
+.ayuda-form {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 14px 0 0;
+  max-width: 75ch;
+}
+.formulario-edicion {
+  margin-bottom: 24px;
+  border-top: 3px solid var(--primary);
+}
+.formulario-edicion form {
+  padding: 20px 24px 24px;
+}
+.formulario-edicion .ayuda-form {
+  margin: 0 0 20px;
+}
+.formulario-edicion .error-vista {
+  margin: 0 0 20px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.campo-form {
+  display: block;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.campo-form input,
+.campo-form select,
+.campo-form textarea {
+  margin-top: 7px;
+  font-size: 14px;
+}
+.campo-form textarea {
+  display: block;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+  width: 100%;
+  min-height: 90px;
+  border: 1px solid #b9c2cf;
+  border-radius: 7px;
+  padding: 11px 12px;
+  color: var(--ink);
+  background: var(--surface);
+}
+.campo-form textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+.acciones-form {
+  justify-content: flex-end;
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+.formulario-edicion .aviso {
+  margin-top: 20px;
+}
+.exito {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 17px;
+  border: 1px solid #bed9c7;
+  border-radius: 8px;
+  color: var(--success);
+  background: #edf7f0;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.visor-evidencia {
+  margin: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.visor-titulo {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 18px;
+  background: #f7f8fa;
+  border-bottom: 1px solid var(--border);
+}
+.visor-titulo h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.visor-evidencia > img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  margin: auto;
+  object-fit: contain;
+}
+.visor-evidencia .estado {
+  min-height: 250px;
+}
+/* Ajustes de la auditoría: lectura cómoda y jerarquía sin rótulos ornamentales. */
+.sidebar nav a {
+  font-size: 13px;
+}
+.nav-etiqueta {
+  font-size: 12px;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+.empresa-contexto strong {
+  font-size: 13px;
+}
+.empresa-contexto span:not(.empresa-icono) {
+  font-size: 12px;
+}
+.usuario-sidebar strong {
+  font-size: 13px;
+}
+.usuario-sidebar small {
+  font-size: 11px;
+}
+.seguridad p {
+  font-size: 12px;
+}
+.seguridad small {
+  font-size: 11px;
+}
+.sidebar .cerrar-sesion > .boton {
+  font-size: 12px;
+}
+.sobrelinea {
+  letter-spacing: 0.5px;
+}
+.panel-nota {
+  font-size: 13px;
+}
+.filtros-fila label {
+  font-size: 12px;
+}
+.filtros-fila input,
+.filtros-fila select {
+  font-size: 13px;
+}
+td small,
+th small {
+  font-size: 12px;
+}
+.metrica > span {
+  font-size: 12px;
+}
+.metrica small {
+  font-size: 12px;
+}
+.definiciones {
+  font-size: 13px;
+}
+.carga-panel .panel-nota {
+  font-size: 12px;
+}
+.carga-cantidad span,
+.carga-disponibilidad,
+.carga-estado span {
+  font-size: 12px;
+}
+.nota-informativa p,
+.ayuda-form {
+  font-size: 13px;
+}
+.login-mensaje h1 {
+  font-size: clamp(34px, 3.2vw, 48px);
+  letter-spacing: -1.5px;
+}
+.login-mensaje > p {
+  font-size: 16px;
+  line-height: 1.75;
+}
+.form-contenedor > .muted {
+  font-size: 14px;
+}
+.nota-acceso,
+.login-pie {
+  font-size: 12px;
+}
+.tabla-scroll:focus-visible {
+  outline-offset: -3px;
+}
+@media (max-width: 1250px) {
+  .sidebar {
+    width: 254px;
+  }
+  .app-principal {
+    margin-left: 254px;
+  }
+  .detalle-dos .tres .metrica {
+    padding: 0 12px;
+  }
+  .detalle-dos .tres .metrica strong {
+    font-size: 18px;
+  }
+}
+@media (max-width: 1000px) {
+  .detalle-dos {
+    grid-template-columns: 1fr;
+  }
+  .detalle-dos .tres .metrica strong {
+    font-size: 23px;
+  }
+  .form-grid {
+    gap: 16px;
+  }
+  .sidebar-inferior {
+    padding: 0 16px 16px;
+  }
+}
+@media (max-width: 800px) {
+  .sidebar {
+    width: 280px;
+  }
+  .app-principal {
+    margin-left: 0;
+  }
+  .acciones .boton {
+    min-height: 44px;
+  }
+  .datos-detalle {
+    padding: 0 18px 16px;
+  }
+  .historial li {
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .historial time {
+    flex-basis: 100%;
+  }
+  .login-mensaje > p {
+    font-size: 14px;
+  }
+  .login-mensaje h1 {
+    font-size: 34px;
+  }
+}
+@media (max-width: 600px) {
+  .form-grid,
+  .datos-detalle {
+    grid-template-columns: 1fr;
+  }
+  .formulario-edicion form {
+    padding: 18px;
+  }
+  .consulta-evidencia {
+    align-items: stretch;
+  }
+  .consulta-evidencia .campo-form {
+    min-width: 100%;
+  }
+  .consulta-evidencia .boton {
+    width: 100%;
+  }
+  .acciones-form {
+    justify-content: stretch;
+  }
+  .acciones-form .boton {
+    flex: 1;
+  }
+  .visor-evidencia {
+    margin: 14px;
+  }
+  .visor-titulo {
+    flex-wrap: wrap;
+    padding: 12px;
+  }
+  .visor-titulo h3 {
+    font-size: 14px;
+  }
+  .grupo-modo .boton {
+    min-width: 0;
+    flex: 1;
+  }
+  .acciones {
+    width: 100%;
+  }
+  .celda-texto {
+    min-width: 170px;
+  }
+  .selector-empresa {
+    padding: 18px;
+  }
+  .seccion-grupo {
+    margin-top: 24px;
+  }
+  .metricas.cinco {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .metricas.cinco .metrica:nth-child(2n) {
+    border: 0;
+  }
+  .metricas.cinco .metrica:nth-child(3) {
+    border-right: 1px solid var(--border);
+  }
+  .campo-form input,
+  .campo-form textarea,
+  .campo-form select {
+    font-size: 16px;
+  }
+}
