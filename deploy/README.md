@@ -119,6 +119,29 @@ La copia local mueve los límites de motoristas a la configuración compartida d
 
 Esta adaptación no modifica backend, móvil, entornos ni despliegues. El usuario realiza todas las operaciones de Git; no se ejecutan desde el asistente.
 
+## Diagnóstico de perfil HTTP 500 · 2026-10-28
+
+El usuario reportó `GET https://vitago.onrender.com/api/v1/usuarios/mi-perfil/` con HTTP 500 desde el JavaScript publicado `index-BvftKTjb.js`. La comprobación pública sin credenciales devuelve salud 200 y perfil anónimo 401, ambos con el origen CORS correcto. Vercel sirve el panel y el navegador alcanza Django.
+
+Una comprobación directa de metadatos en la base externa `vitago_corporativo`, con `transaction_read_only=on`, confirmó que solo están aplicadas `organizaciones.0001_initial` y `0002_initial`. Faltan las columnas `empresas.limite_tubos_por_motorista` y `empresas.limite_solicitudes_por_motorista`, así como las tablas `limites_motoristas_red` e `historial_limites_motoristas`.
+
+El código 0.41.0 consulta empresas mediante las relaciones del usuario y sus roles al construir el perfil. La ausencia de las columnas de esa migración explica el fallo de esa consulta autenticada; no se resuelve cambiando la URL del frontend o CORS. No se consultaron datos de usuarios ni se utilizaron credenciales JWT reales.
+
+La corrección requiere aplicar la migración pendiente sobre esa base, con la configuración de producción del servicio. Desde la raíz del backend en Render:
+
+```sh
+python manage.py showmigrations organizaciones --settings=config.settings.production
+python manage.py migrate organizaciones 0003_limites_motoristas_compartidos --settings=config.settings.production
+```
+
+Estos comandos quedan documentados, sin ejecutar, para el responsable del backend. Las migraciones y la gestión de esa base corresponden al backend y no se ejecutan como parte del trabajo del frontend web. No se realizaron operaciones de Git, migraciones, cambios de configuración ni despliegues durante este diagnóstico. La validación del perfil real depende de la disponibilidad de esa API.
+
+### Manejo del error en el frontend
+
+Se ajustó el acceso web para separar un login aceptado de un fallo posterior al consultar `mi-perfil/`. Si hay sesión pero no se puede cargar el perfil, se muestra una pantalla específica con reintento manual del GET y salida local. No se vuelve a enviar la contraseña ni se repite automáticamente la consulta. Al salir se limpian tanto el perfil como el error de recuperación.
+
+Esta mejora queda local y no corrige ni oculta una respuesta 500 de Django. Las regresiones utilizan una API HTTP de prueba con CORS, sin credenciales o escrituras reales. No se modifica ni se vuelve a consultar directamente la base del backend como parte de este ajuste web.
+
 ## Desarrollo local
 
 `npm run dev` usa el puerto 5173. En `.env.local`, `VITE_API_URL` apunta al backend local. Puede conservarse `VITE_API_PROXY=true` solo para desarrollo: Vite reenvía las rutas `/api/v1/`, sin gestionar tokens ni sesiones. En producción el navegador siempre consulta directamente Django, independientemente de ese valor.

@@ -14,6 +14,7 @@ const perfilWeb = {
 let backend: Server;
 let accesoVencido = false;
 let rechazarRenovacion = false;
+let rechazarPerfil = false;
 let renovaciones = 0;
 let preflights = 0;
 let cambios = 0;
@@ -81,7 +82,13 @@ test.beforeAll(async () => {
       res.statusCode = 401;
       return res.end("{}");
     }
-    if (ruta.endsWith("/mi-perfil/")) return res.end(JSON.stringify(perfilWeb));
+    if (ruta.endsWith("/mi-perfil/")) {
+      if (rechazarPerfil) {
+        res.statusCode = 500;
+        return res.end(JSON.stringify({ detail: "Error interno de prueba." }));
+      }
+      return res.end(JSON.stringify(perfilWeb));
+    }
     if (ruta.endsWith("/repartidores/resumenes/"))
       return res.end(JSON.stringify(lista));
     if (ruta.endsWith("/restablecer-contrasena/")) {
@@ -106,6 +113,7 @@ test.beforeAll(async () => {
 test.beforeEach(() => {
   accesoVencido = false;
   rechazarRenovacion = false;
+  rechazarPerfil = false;
   renovaciones = preflights = cambios = 0;
   autorizacion = "Bearer acceso-prueba";
   peticiones.length = 0;
@@ -129,6 +137,70 @@ async function acceder(page: Page) {
 async function sesionGuardada(page: Page) {
   return page.evaluate((key) => sessionStorage.getItem(key), clave);
 }
+
+test("un perfil 500 después del login permite reintentar GET sin repetir credenciales", async ({
+  page,
+}) => {
+  rechazarPerfil = true;
+  await page.goto(origen);
+  await page.getByLabel("Correo electrónico").fill("admin@example.test");
+  await page.getByLabel("Contraseña", { exact: true }).fill("solo-prueba");
+  await page.getByRole("button", { name: "Entrar al panel" }).click();
+  await expect(
+    page.getByRole("heading", { name: "No pudimos cargar tu perfil" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Entrar al panel" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText(
+    "El servidor no pudo completar la operación",
+  );
+  expect(await sesionGuardada(page)).not.toBeNull();
+  expect(peticiones.filter((p) => p.ruta.endsWith("mi-perfil/")).length).toBe(
+    1,
+  );
+  rechazarPerfil = false;
+  await page.getByRole("button", { name: "Reintentar perfil" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Resúmenes diarios", exact: true }),
+  ).toBeVisible();
+  expect(peticiones.filter((p) => p.ruta.endsWith("mi-perfil/")).length).toBe(
+    2,
+  );
+  expect(
+    peticiones.filter((p) => p.ruta.endsWith("iniciar-sesion/")).length,
+  ).toBe(1);
+  expect(renovaciones).toBe(0);
+});
+
+test("un perfil 500 persistente no provoca bucles y permite salir localmente", async ({
+  page,
+}) => {
+  await acceder(page);
+  rechazarPerfil = true;
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "No pudimos cargar tu perfil" }),
+  ).toBeVisible();
+  const antes = peticiones.filter((p) => p.ruta.endsWith("mi-perfil/")).length;
+  await page.getByRole("button", { name: "Reintentar perfil" }).click();
+  await expect(
+    page.getByRole("heading", { name: "No pudimos cargar tu perfil" }),
+  ).toBeVisible();
+  expect(peticiones.filter((p) => p.ruta.endsWith("mi-perfil/")).length).toBe(
+    antes + 1,
+  );
+  expect(
+    peticiones.filter((p) => p.ruta.endsWith("iniciar-sesion/")).length,
+  ).toBe(1);
+  await page
+    .getByRole("button", { name: "Volver al inicio de sesión" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Inicia sesión" }),
+  ).toBeVisible();
+  expect(await sesionGuardada(page)).toBeNull();
+});
 
 test("compilación estática accede directamente con JWT y CORS, recupera la sesión y sale sin cookies", async ({
   page,

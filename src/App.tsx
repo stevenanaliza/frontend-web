@@ -135,7 +135,7 @@ function Estructura() {
         requestAnimationFrame(() => abrir.current?.focus());
       }
     }
-    const media = window.matchMedia("(min-width: 801px)");
+    const media = window.matchMedia("(min-width: 1025px)");
     const ajustar = () => {
       if (media.matches) setMenu(false);
     };
@@ -157,10 +157,14 @@ function Estructura() {
         <button
           className="fondo-menu"
           aria-label="Cerrar navegación"
-          onClick={() => setMenu(false)}
+          onClick={() => {
+            setMenu(false);
+            requestAnimationFrame(() => abrir.current?.focus());
+          }}
         />
       )}
       <aside
+        id="navegacion-principal"
         ref={navegacion}
         className={`sidebar ${menu ? "abierto" : ""}`}
         onKeyDown={(event) => {
@@ -291,6 +295,7 @@ function Estructura() {
               ref={abrir}
               className="boton icono abrir-menu"
               aria-label="Abrir navegación"
+              aria-controls="navegacion-principal"
               aria-expanded={menu}
               onClick={() => setMenu(true)}
             >
@@ -395,7 +400,16 @@ export function App() {
     return (
       <main className="acceso-denegado">
         <Marca />
-        <ErrorVista error={error} reintentar={() => void recuperar()} />
+        <h1>No pudimos cargar tu perfil</h1>
+        <p>
+          La sesión está guardada, pero no se pudo consultar tu perfil y tus
+          permisos. Puedes reintentar esa consulta sin volver a introducir la
+          contraseña.
+        </p>
+        <ErrorVista error={error} />
+        <button className="boton primario" onClick={() => void recuperar()}>
+          Reintentar perfil
+        </button>
         <button className="boton secundario" onClick={() => api.limpiar()}>
           Volver al inicio de sesión
         </button>

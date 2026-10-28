@@ -478,7 +478,12 @@ export function DetalleSolicitud() {
               </dl>
             </Panel>
             <Panel titulo="Artículos declarados" className="separacion-panel">
-              <div className="tabla-scroll">
+              <div
+                className="tabla-scroll"
+                role="region"
+                aria-label="Artículos declarados"
+                tabIndex={0}
+              >
                 <table>
                   <thead>
                     <tr>

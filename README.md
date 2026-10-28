@@ -100,6 +100,8 @@ Las pruebas cubren contratos, permisos, errores, paginación y operaciones admin
 
 La adaptación 0.41.0 pasó **40 pruebas unitarias y 50 escenarios de navegador**, además de compilación y formato. Se comprueban permisos de empresa/sucursal/red, configuración compartida, rechazo del PATCH individual, actualización de lecturas, errores por campo y capturas a 1440, 768 y 375 píxeles.
 
+La revisión responsive recorre el acceso y 17 pantallas administrativas en diez anchos entre 320 y 2560 píxeles, con nombres y correos largos. Incluye orientación horizontal, controles táctiles, teclado, cambio de tableta a escritorio y texto del sistema ampliado. Se ejecuta con `npx playwright test tests/e2e/responsive.spec.ts`; genera capturas en `artifacts/responsive/`. Son pruebas en Chrome con tamaños y entrada táctil simulados, usando una API aislada.
+
 Las capturas en `artifacts/` contienen datos de prueba. El panel está publicado en Vercel y se comprobó que Django responde a salud, perfil sin sesión y login vacío con CORS correcto. El acceso administrativo y las escrituras con datos reales requieren una cuenta autorizada; las pruebas de formularios utilizan una API aislada. Ver [diagnóstico de conexión](./deploy/README.md).
 
 Para revisar la compilación localmente:

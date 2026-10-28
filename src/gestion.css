@@ -4,6 +4,16 @@
   padding: 0;
   min-width: 0;
 }
+.acceso-denegado > h1 {
+  margin: 0;
+  text-align: center;
+}
+.acceso-denegado > p {
+  max-width: 650px;
+  margin: 0;
+  line-height: 1.6;
+  text-align: center;
+}
 .limites-contenido {
   padding: 20px 22px;
 }

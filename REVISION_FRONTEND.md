@@ -70,3 +70,15 @@ Se sustituyó la edición individual por una pantalla de límites compartidos en
 Se actualizaron los contratos y las pruebas para exigir las nuevas rutas, impedir el PATCH individual, conservar errores 400/403/409, refrescar lecturas y representar un endpoint todavía no disponible. No se usa Git ni se publica esta adaptación. El backend y la migración externa se mantienen fuera del alcance de este trabajo.
 
 Validación final: 40 pruebas unitarias, 50 escenarios de navegador, compilación y formato aprobados. Se inspeccionaron las capturas de límites compartidos en escritorio y teléfono; las pruebas también comprueban tablet y ausencia de desbordamiento del documento. Todas las escrituras se ejecutaron contra respuestas aisladas de prueba.
+
+## Adaptación responsive local · 2026-10-28
+
+- Menú plegable hasta 1024 píxeles, con desplazamiento propio, cierre con Escape, retorno del foco y recuperación del contenido al pasar a escritorio.
+- Formularios y filtros en una columna en teléfonos; columnas flexibles, cabeceras y acciones que admiten varias líneas y nombres largos.
+- Tablas con desplazamiento horizontal propio. Se corrigió el caption de resúmenes que extendía el ancho del documento y se añadieron regiones accesibles al historial de roles y los artículos declarados.
+- Controles de al menos 44 píxeles de alto y campos de 16 píxeles en pantallas pequeñas o con puntero táctil. Márgenes para zonas seguras y acceso desplazable con poco alto disponible.
+- Cobertura responsive de 17 pantallas en diez anchos, de 320 a 2560 píxeles, además de navegación táctil, teclado, orientación horizontal y escala de texto del sistema. Capturas en `artifacts/responsive/`.
+
+Validación: 40 pruebas unitarias, diez escenarios de tamaños y 56 escenarios de interacción y regresión aprobados; compilación y formato correctos. Se inspeccionaron capturas de teléfono, tableta, escritorio y horizontal. La simulación se realizó en Chrome con una API de prueba, sin escrituras operativas.
+
+Cambios locales del frontend web. Sin operaciones Git, modificaciones del backend o del móvil, ni publicación.

@@ -5,6 +5,7 @@ import { App } from "./App";
 import "./styles.css";
 import "./admin.css";
 import "./gestion.css";
+import "./responsive.css";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>

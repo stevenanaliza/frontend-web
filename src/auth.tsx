@@ -40,14 +40,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
   useEffect(() => {
-    api.escucharSesion(() => setPerfil(null));
+    api.escucharSesion(() => {
+      setPerfil(null);
+      setError(null);
+    });
     void recuperar();
     return () => api.escucharSesion(() => {});
   }, []);
   async function iniciar(correo: string, contrasena: string) {
     await api.iniciar(correo, contrasena);
-    await cargarPerfil();
-    setError(null);
+    await recuperar();
   }
   async function cerrar() {
     await api.cerrar();

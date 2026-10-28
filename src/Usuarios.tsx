@@ -272,7 +272,12 @@ function HistorialRoles({
         roles.datos && (
           <>
             {roles.datos.resultados.length ? (
-              <div className="tabla-scroll">
+              <div
+                className="tabla-scroll"
+                role="region"
+                aria-label="Roles del usuario"
+                tabIndex={0}
+              >
                 <table>
                   <thead>
                     <tr>
