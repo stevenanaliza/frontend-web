@@ -87,6 +87,35 @@ El cierre actual utiliza `cerrar-sesion/` y elimina las credenciales tras el 204
 
 El contrato ofrece restablecimiento administrativo de contraseña, que revoca las sesiones. No ofrece recuperación pública por correo ni cambio personal con contraseña anterior; no se inventan esos endpoints. Ver [contratos comprobados](./CONTRATOS_WEB_VERIFICADOS.md).
 
+## Monitorear · Google Maps
+
+La ruta `/monitorear` muestra un punto por motorista con seguimiento operativo disponible y permite abrir su carga, vehículo, solicitudes y artículos. Exige `repartidor.ver`, `solicitud.ver` y `solicitud.ver_seguimiento`, con el alcance autorizado por Django.
+
+La API solo permite consultar GPS mediante solicitudes activas: `/api/v1/solicitudes/{id}/seguimiento/`. Los motoristas sin ese seguimiento permanecen en el listado sin un punto en el mapa. No se usa la ubicación de inicio de jornada ni una evidencia histórica para afirmar dónde están ahora. Se muestra la fecha de captura y se distingue una ubicación de más de dos minutos. No se dibujan recorridos ni se solicitan rutas, geocodificación o Fleet Engine.
+
+La consulta se repite 15 segundos después de completar cada lectura, sin solapar ciclos y con un máximo de cuatro peticiones simultáneas por lote. Se pausa al ocultar la pestaña, salir de la pantalla o producirse un error. Los fallos de GPS eliminan el punto afectado; Actualizar permite reintentar. Las lecturas recorren la paginación del directorio y de los estados activos sin seguir URLs externas del paginador. Los totales de carga provienen del servidor; el detalle incluye las solicitudes visibles al administrador.
+
+Configurar en `.env.local`:
+
+```dotenv
+VITE_GOOGLE_MAPS_API_KEY=clave_web_de_google_maps
+VITE_GOOGLE_MAPS_MAP_ID=
+```
+
+Crear una clave web independiente de la móvil y limitarla a **Maps JavaScript API** y a los sitios permitidos. Producción: `https://frontend-web-eight-self.vercel.app/*`; desarrollo: `http://127.0.0.1:5173/*` o el puerto usado. Para la prueba de navegador real se utiliza `http://127.0.0.1:5174/*`. El Map ID propio permite personalizar el mapa; si está vacío se usa `DEMO_MAP_ID`. La clave web se incorpora al cliente Vite y debe restringirse por sitio y API; no es una credencial del backend. El uso puede generar cargos en Google Cloud. Para prototipos Google ofrece una [Maps Demo Key](https://mapsplatform.google.com/maps-demo-key?utm_campaign=gmp_git_agentskills_v1), con límites propios y sin uso productivo.
+
+Para una futura publicación, configurar también `VITE_GOOGLE_MAPS_API_KEY` y, si corresponde, `VITE_GOOGLE_MAPS_MAP_ID` en el entorno de producción de Vercel y volver a compilar. `.env.local` no se publica como configuración de la plataforma. El encabezado `Referrer-Policy` permite enviar únicamente el origen a Google para validar la restricción de sitios web. Se conserva la atribución del mapa y el acceso a los términos y privacidad de Google.
+
+Las pruebas habituales simulan el servicio de mapas y utilizan una clave ficticia; ejecutan el SDK React real y no consumen cuotas de Google. Para una comprobación opcional del mapa real, con GPS ilustrativo de la API de prueba:
+
+```powershell
+$env:VITAGO_MAPA_REAL = '1'
+npx playwright test tests/e2e/monitoreo.spec.ts --grep 'Google Maps real'
+Remove-Item Env:VITAGO_MAPA_REAL
+```
+
+Esta comprobación requiere clave local y referente autorizado. Deshabilita trazas y capturas automáticas para no guardar URLs con la clave. Ninguna prueba modifica la base operativa.
+
 ## Verificación
 
 ```powershell

@@ -10,6 +10,11 @@ export const tieneTodos = (perfil: Perfil, permisos: string[]) =>
   permisos.every((p) => perfil.permisos.includes(p));
 export const puedeVerReportes = (perfil: Perfil) =>
   tieneTodos(perfil, permisosReporte);
+export const permisosMonitoreo = [
+  "repartidor.ver",
+  "solicitud.ver",
+  "solicitud.ver_seguimiento",
+];
 // solicitud.ver es administrativo; los solicitantes y motoristas reciben ver_propias/ver_asignadas.
 export const puedeEntrar = (perfil: Perfil) =>
   perfil.permisos.some((p) =>

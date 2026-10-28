@@ -12,6 +12,7 @@
     "format:check": "prettier --check src tests *.ts *.json index.html README.md REVISION_FRONTEND.md CONTRATOS_WEB_VERIFICADOS.md deploy/README.md"
   },
   "dependencies": {
+    "@vis.gl/react-google-maps": "1.10.1",
     "lucide-react": "1.62.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",

@@ -82,3 +82,17 @@ Validación final: 40 pruebas unitarias, 50 escenarios de navegador, compilació
 Validación: 40 pruebas unitarias, diez escenarios de tamaños y 56 escenarios de interacción y regresión aprobados; compilación y formato correctos. Se inspeccionaron capturas de teléfono, tableta, escritorio y horizontal. La simulación se realizó en Chrome con una API de prueba, sin escrituras operativas.
 
 Cambios locales del frontend web. Sin operaciones Git, modificaciones del backend o del móvil, ni publicación.
+
+## Monitorear · Google Maps · 2026-10-28
+
+Se añadió `/monitorear`, con accesos desde Administración y la navegación. Requiere los permisos oficiales de lectura de motoristas, solicitudes y seguimiento. Muestra un marcador por motorista con GPS operativo autorizado y una ficha con carga actual, cupo, solicitudes visibles, artículos, contacto y vehículo. La fecha de captura siempre distingue la última ubicación reportada de una posición confirmada en este instante.
+
+La implementación usa Maps JavaScript API con Advanced Markers y `@vis.gl/react-google-maps` 1.10.1, cargados únicamente al abrir esta sección. No utiliza trazados, Routes, Roads, Geocoding ni Fleet Engine. Los puntos vienen de `/solicitudes/{id}/seguimiento/`; el contrato no permite ubicación libre fuera de solicitudes activas. Se recorren los listados paginados, se agrupan los resultados por motorista y se conserva un solo punto válido, el más reciente. No se inventa un endpoint de GPS general ni se infiere una posición desde evidencias históricas.
+
+La actualización se repite después de 15 segundos, sin ciclos solapados; admite pausa y reintento manual, cancela lecturas al salir u ocultar la pestaña y detiene la repetición ante fallos. Las coordenadas se validan, se comprueba la correspondencia de solicitud/motorista y se retiran puntos que dejan de estar disponibles. La carga total sigue siendo la calculada por Django. Los artículos se consultan solo para la ficha seleccionada.
+
+La clave web se configura en `.env.local` y debe configurarse también en el entorno Production de Vercel antes de una futura publicación. No se imprime ni se copia a archivos de prueba. Se cambió `Referrer-Policy` a `strict-origin-when-cross-origin` para permitir validar la clave restringida por sitio web. Se conserva la atribución del mapa y se enlazan términos y privacidad de Google. Se revisaron las guías y condiciones de Google Maps; no se copiaron fragmentos de sus ejemplos.
+
+Validación: 53 pruebas unitarias y 62 escenarios de navegador de funcionalidad y regresión aprobados, además de compilación y formato. Las pruebas de mapas ejecutan el SDK React con un servicio externo simulado, verificando selección del punto, ficha, errores, retirada de ubicaciones, permisos y adaptación a 320, 375, 820, 1440 y 844 píxeles en horizontal. Capturas identificadas como simulación en `artifacts/monitoreo/`.
+
+El usuario probará el mapa real en Vercel y mantiene la clave restringida a ese sitio; no se hizo una llamada real al mapa desde el origen local ni se comprobó una sesión administrativa real contra la API operativa. Cambios locales, sin publicación, Git, backend ni móvil.

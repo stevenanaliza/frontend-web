@@ -2,9 +2,16 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useAuth } from "./auth";
 import { Cabecera } from "./admin-comunes";
-import { tieneTodos } from "./permisos";
+import { tieneTodos, permisosMonitoreo } from "./permisos";
 
 const acciones = [
+  {
+    nombre: "Monitorear",
+    ruta: "/monitorear",
+    permisos: permisosMonitoreo,
+    texto:
+      "Ubicación reportada, solicitudes, artículos y carga de los motoristas.",
+  },
   {
     nombre: "Crear solicitud",
     ruta: "/solicitudes/nueva",

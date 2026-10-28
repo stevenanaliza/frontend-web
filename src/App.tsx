@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Link,
   NavLink,
@@ -38,6 +45,7 @@ import {
   puedeVerReportes,
   rutaInicial,
   tieneTodos,
+  permisosMonitoreo,
 } from "./permisos";
 import { Solicitudes, DetalleSolicitud } from "./Solicitudes";
 import { Motoristas } from "./Motoristas";
@@ -50,6 +58,7 @@ import { Empresas, Ubicaciones } from "./Organizacion";
 import { Vehiculos } from "./Vehiculos";
 import { Administracion } from "./Administracion";
 import { LimitesMotoristas } from "./LimitesMotoristas";
+const Monitorear = lazy(() => import("./Monitorear"));
 const iconos = [
   PackageSearch,
   Users,
@@ -212,6 +221,12 @@ function Estructura() {
             <LayoutGrid size={19} aria-hidden="true" />
             Administración
           </NavLink>
+          {tieneTodos(perfil, permisosMonitoreo) && (
+            <NavLink onClick={() => setMenu(false)} to="/monitorear">
+              <MapPin size={19} aria-hidden="true" />
+              Monitorear
+            </NavLink>
+          )}
           {puedeVerReportes(perfil) && (
             <>
               <p className="nav-etiqueta">Operación</p>
@@ -422,6 +437,16 @@ export function App() {
         <Route element={<Estructura />}>
           <Route path="/limites-motoristas" element={<LimitesMotoristas />} />
           <Route path="/administracion" element={<Administracion />} />
+          <Route
+            path="/monitorear"
+            element={
+              <ProteccionModulo permisos={permisosMonitoreo}>
+                <Suspense fallback={<Cargando texto="Preparando monitoreo…" />}>
+                  <Monitorear />
+                </Suspense>
+              </ProteccionModulo>
+            }
+          />
           <Route
             path="/solicitudes/nueva"
             element={
