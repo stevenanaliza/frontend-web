@@ -16,7 +16,7 @@ export function Sucursales() {
   const { perfil } = useAuth();
   const [params, setParams] = useSearchParams();
   const empresa = params.get("empresa_id") ?? perfil?.empresa?.id ?? "";
-  const [nueva, setNueva] = useState(false),
+  const [nueva, setNueva] = useState(params.get("crear") === "1"),
     [revision, setRevision] = useState(0),
     [mensaje, setMensaje] = useState("");
   return (
@@ -55,7 +55,7 @@ export function Sucursales() {
             )}
           </div>
           {mensaje && <Exito>{mensaje}</Exito>}
-          {nueva && (
+          {nueva && perfil?.permisos.includes("sucursal.administrar") && (
             <NuevaSucursal
               key={empresa}
               empresa={empresa}

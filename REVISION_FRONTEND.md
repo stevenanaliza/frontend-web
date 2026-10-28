@@ -50,6 +50,15 @@ El usuario confirmó una sesión abierta. Computer Use se detuvo al no poder ide
 ## Dependencias externas y límites restantes
 
 - Validación de datos autenticados reales con la cuenta del usuario: no se completó mediante la herramienta de Chrome por la limitación de identificación de URL indicada arriba.
-- El usuario publicó frontend y backend. Se verificaron `https://frontend-web-eight-self.vercel.app` y `https://vitago.onrender.com`: salud 200, perfil anónimo 401 y login vacío 400 desde un navegador aislado en el dominio del panel, con CORS correcto. El JavaScript publicado tiene vacío el origen y `/mi-cuenta` devuelve 404 al abrir directamente. La configuración local de producción y `vercel.json` corrigen ambos problemas; falta publicar la actualización y comprobar una sesión real. No se han modificado servicios externos desde esta entrega.
+- El frontend está publicado en `https://frontend-web-eight-self.vercel.app`, conectado con `https://vitago.onrender.com` mediante JWT directo. La publicación del 27 de octubre corrigió el origen compilado y las rutas internas: salud 200, perfil anónimo 401, login vacío 400 con CORS, y rutas de React 200. La evidencia y el diagnóstico histórico están en `deploy/README.md`. Sigue pendiente comprobar una sesión administrativa real.
 - Los JWT se guardan en sessionStorage y son accesibles al JavaScript de la aplicación. La recuperación corresponde a la pestaña; no se ofrece la sesión compartida automática del servidor anterior. Si Django revoca otras sesiones, sus siguientes consultas exigirán un nuevo acceso.
 - El contrato no ofrece recuperación por correo, cambio personal con contraseña anterior ni edición de sucursales existentes. Esos endpoints requieren ampliación por el equipo del backend; no se han inventado.
+
+## Ampliación administrativa · 2026-10-28
+
+- Entrada Administración con accesos visibles a crear solicitudes, usuarios, sucursales, ubicaciones, motocicletas y motoristas, según permisos.
+- Creación de solicitudes con catálogos de origen/destino por modalidad, servicios, prioridades, cantidad de tubos y varios artículos. El resultado refleja la asignación automática del servidor. Se conservan valores y errores por campo tras un rechazo.
+- Empresas con datos de contacto y accesos a sus directorios; ubicaciones con alta manual, país de la empresa, coordenadas y aprobación; flota con directorio y alta independiente de motocicletas.
+- Las credenciales, el contrato JWT y los permisos de Django permanecen vigentes. Consultar catálogos operativos no concede acceso administrativo. Los botones de reintento dentro de formularios no disparan su envío.
+- Capturas verificadas en escritorio, tablet y teléfono. Compilación, 36 pruebas unitarias y 41 escenarios completos de navegador aprobados; la revisión final de formularios incluye además la regresión del reintento.
+- No se modificaron backend ni móvil. La API no ofrece alta/edición de empresas, edición de sucursales o vehículos existentes, ni cambio de usuario o motocicleta de un motorista creado.

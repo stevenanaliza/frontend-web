@@ -107,6 +107,12 @@ Antes de publicar pasaron la compilación, 35 pruebas unitarias, 33 pruebas de n
 
 No se modificaron el backend ni el móvil. Sigue pendiente comprobar el acceso con una cuenta administrativa real y las operaciones protegidas sobre datos reales; la renovación y el cierre JWT sí están cubiertos por las pruebas aisladas.
 
+## Actualización administrativa · 2026-10-28
+
+La nueva entrada `/administracion` reúne las altas disponibles. Se incorporan `/solicitudes/nueva`, `/empresas`, `/ubicaciones` y `/vehiculos`. Las nuevas pantallas consumen el mismo backend HTTPS con JWT directo y respetan los permisos recibidos; no requieren variables adicionales ni cambios en Django o Flutter.
+
+La validación utiliza catálogos y escrituras aisladas de Playwright, sin crear registros en producción. Las empresas permanecen de consulta y no se ofrecen operaciones que la API actual no expone. Al publicar, comprobar el estado `READY`, el commit de `main`, el JavaScript nuevo y la carga directa de las nuevas rutas; el acceso con una cuenta real continúa siendo una comprobación independiente.
+
 ## Desarrollo local
 
 `npm run dev` usa el puerto 5173. En `.env.local`, `VITE_API_URL` apunta al backend local. Puede conservarse `VITE_API_PROXY=true` solo para desarrollo: Vite reenvía las rutas `/api/v1/`, sin gestionar tokens ni sesiones. En producción el navegador siempre consulta directamente Django, independientemente de ese valor.

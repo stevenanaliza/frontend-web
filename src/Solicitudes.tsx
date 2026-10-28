@@ -42,6 +42,7 @@ import { Exito } from "./formularios";
 import { useState } from "react";
 
 export function Solicitudes() {
+  const { perfil } = useAuth();
   const [params, setParams] = useSearchParams();
   const por = params.get("por") === "solicitante" ? "solicitante" : "sucursal";
   const empresa = params.get("empresa_id") ?? "";
@@ -86,6 +87,13 @@ export function Solicitudes() {
         texto="Revisa los traslados por sucursal o por la persona que los creó."
         recargar={grupos.recargar}
         cargando={grupos.cargando}
+        accion={
+          perfil?.permisos.includes("solicitud.crear") ? (
+            <Link className="boton primario" to="/solicitudes/nueva">
+              Crear solicitud
+            </Link>
+          ) : undefined
+        }
       />
       <div className="grupo-modo" role="group" aria-label="Agrupar solicitudes">
         <button
@@ -367,8 +375,10 @@ function SolicitudesGrupo({
   );
 }
 export function DetalleSolicitud() {
-  const [mensaje, setMensaje] = useState("");
   const ubicacion = useLocation();
+  const [mensaje, setMensaje] = useState(
+    typeof ubicacion.state?.mensaje === "string" ? ubicacion.state.mensaje : "",
+  );
   const volver =
     typeof ubicacion.state?.volver === "string"
       ? `?${ubicacion.state.volver}`

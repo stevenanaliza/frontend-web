@@ -9,6 +9,7 @@ import {
   vehiculoSchema,
 } from "./contratos-admin";
 import { Campo, uuidPattern } from "./admin-comunes";
+import { ErrorCampo } from "./componentes";
 import {
   EmpresaCampo,
   Formulario,
@@ -123,10 +124,12 @@ export function NuevoVehiculo({
   empresa,
   cerrar,
   creado,
+  permitirInactivo = false,
 }: {
   empresa: string;
   cerrar: () => void;
   creado: (id: string) => void;
+  permitirInactivo?: boolean;
 }) {
   const operacion = useOperacion();
   return (
@@ -149,7 +152,7 @@ export function NuevoVehiculo({
               marca: String(datos.get("marca")).trim() || null,
               modelo: String(datos.get("modelo")).trim() || null,
               anio: datos.get("anio") ? Number(datos.get("anio")) : null,
-              estado: "ACTIVO",
+              estado: String(datos.get("estado") ?? "ACTIVO"),
               notas: String(datos.get("notas")).trim() || null,
             }),
           }),
@@ -161,6 +164,7 @@ export function NuevoVehiculo({
         <Campo
           nombre="placa"
           etiqueta="Placa"
+          maxLength={32}
           required
           error={operacion.error}
         />
@@ -170,10 +174,29 @@ export function NuevoVehiculo({
           nombre="anio"
           etiqueta="Año"
           type="number"
+          min={1900}
+          max={9999}
           step={1}
           error={operacion.error}
         />
         <Campo nombre="notas" etiqueta="Notas" error={operacion.error} />
+        {permitirInactivo && (
+          <label className="campo-form" htmlFor="estado">
+            Estado del vehículo
+            <select
+              id="estado"
+              name="estado"
+              defaultValue="ACTIVO"
+              aria-describedby="estado-error"
+            >
+              <option value="ACTIVO">Activo</option>
+              <option value="MANTENIMIENTO">Mantenimiento</option>
+              <option value="FUERA_SERVICIO">Fuera de servicio</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+            <ErrorCampo campo="estado" error={operacion.error} />
+          </label>
+        )}
       </div>
     </Formulario>
   );

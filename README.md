@@ -44,12 +44,16 @@ Ver [deploy/README.md](./deploy/README.md) para CORS, configuración y comprobac
 | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Acceso            | Correo/contraseña, recuperación al recargar, perfil, permisos, rotación JWT y cierre de sesión                    |
 | Resúmenes diarios | Fecha operativa, filtros, paginación remota, detalle del motorista y temperaturas                                 |
-| Solicitudes       | Agrupaciones por sucursal o solicitante, creador, filtros, detalle, artículos e historial                         |
+| Solicitudes       | Creación con catálogos autorizados, modalidades, artículos y tubos; agrupaciones, filtros, detalle e historial    |
 | Operaciones       | Asignar/reasignar, corregir tubos con motivo y cancelar según estado y permisos                                   |
 | Evidencias        | Metadatos e imágenes privadas solicitadas con Bearer y object URLs temporales                                     |
 | Motoristas        | Directorio, carga actual, límite autorizado, alta de perfil y motocicleta                                         |
 | Usuarios          | Alta, detalle, edición, catálogo de roles delegables, asignación/revocación y contraseñas                         |
 | Sucursales        | Directorio y alta con ubicación aprobada de la empresa                                                            |
+| Administración    | Accesos directos a las altas y gestiones disponibles según los permisos de la cuenta                              |
+| Empresas          | Consulta de datos y contacto; accesos a sucursales, ubicaciones y flota de cada empresa                           |
+| Ubicaciones       | Directorio, registro manual con país de la empresa, coordenadas y aprobación del uso como origen o destino        |
+| Vehículos         | Directorio y alta independiente de motocicletas con estado inicial                                                |
 | Mi cuenta         | Datos, contraseña propia cuando el restablecimiento administrativo está autorizado y cierre de todas las sesiones |
 
 Las rutas y acciones se protegen por permisos. Los solicitantes y motoristas sin permisos administrativos no pueden entrar. Los reportes requieren conjuntamente `repartidor.ver`, `reporte.ver`, `solicitud.ver`, `jornada.ver` y `evidencia.ver`. Django decide siempre la autorización y el alcance definitivos.
@@ -57,6 +61,10 @@ Las rutas y acciones se protegen por permisos. Los solicitantes y motoristas sin
 Se distinguen actividad del día y carga actual; cero y `null`; kilómetros medidos, consolidados e incompletos de jornadas cerradas. Los hitos y artículos no se suman para inventar cantidades. La capacidad y los límites los calcula el backend. Las tablas y selectores consultan una página del servidor cada vez.
 
 Las respuestas se validan con Zod. Los errores por campo conservan los valores del formulario; se distinguen HTTP 400, 401, 403, 404, 409, 429 y 5xx de fallos de conexión. Ninguna operación de escritura se repite automáticamente.
+
+La creación de solicitudes consulta `opciones-creacion/` por empresa, modalidad y origen. Solo permite elegir destinos devueltos por Django; al cambiar modalidad u origen descarta el destino anterior. Los envíos especiales dependen del catálogo autorizado y usan una descripción con `destino_id: null`. La cantidad de tubos es independiente de las cantidades de los artículos. El servidor crea el traslado y decide su asignación automática; el panel muestra el resultado real.
+
+El contrato vigente no expone altas o edición de empresas, edición de sucursales ni edición de vehículos existentes. El panel ofrece la consulta de esos registros y las altas disponibles. Tampoco permite cambiar el usuario o la motocicleta de un motorista ya creado: el endpoint administrativo actual solo configura su límite de tubos.
 
 ## Sesión JWT y contraseñas
 
@@ -83,9 +91,9 @@ npm run format:check
 
 Las pruebas cubren contratos, permisos, errores, paginación y operaciones administrativas. Los escenarios de sesión sirven una compilación estática y acceden a una API HTTP de prueba en otro origen: comprueban CORS, Bearer, recuperación, renovación, salida y cambio de contraseña sin cookies ni servidor de sesiones. Las pruebas de escritura no modifican bases operativas.
 
-Resultado de esta adaptación: **35 pruebas unitarias y 33 escenarios de navegador aprobados**, además de compilación y formato.
+La ampliación administrativa pasó **36 pruebas unitarias** y una ejecución completa de **41 escenarios de navegador**. La revisión final de formularios vuelve a comprobar los flujos administrativos e incorpora un caso adicional: reintentar una consulta no debe enviar el formulario. También se verifican compilación, formato y capturas a 1440, 768 y 375 píxeles.
 
-Las capturas en `artifacts/` contienen datos de prueba. Se comprobó desde el dominio público de Vercel que Django responde a salud, perfil sin sesión y login vacío con CORS correcto. Falta publicar esta actualización y verificar el acceso con una cuenta administrativa real. Ver [diagnóstico de conexión](./deploy/README.md). No se han publicado cambios externos desde esta entrega.
+Las capturas en `artifacts/` contienen datos de prueba. El panel está publicado en Vercel y se comprobó que Django responde a salud, perfil sin sesión y login vacío con CORS correcto. El acceso administrativo y las escrituras con datos reales requieren una cuenta autorizada; las pruebas de formularios utilizan una API aislada. Ver [diagnóstico de conexión](./deploy/README.md).
 
 Para revisar la compilación localmente:
 

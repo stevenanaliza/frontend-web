@@ -125,9 +125,9 @@ function EditarLimite({
   );
 }
 export function Motoristas() {
-  const [nuevo, setNuevo] = useState(false);
   const { perfil } = useAuth();
   const [params] = useSearchParams();
+  const [nuevo, setNuevo] = useState(params.get("crear") === "1");
   const [seleccion, setSeleccion] = useState<Motorista | null>(null);
   const [mensaje, setMensaje] = useState("");
   const listado = usePaginaRemota("/api/v1/repartidores/", motoristaSchema, {
@@ -151,7 +151,7 @@ export function Motoristas() {
           ) : undefined
         }
       />
-      {nuevo && (
+      {nuevo && perfil?.permisos.includes("repartidor.administrar") && (
         <NuevoMotorista
           cerrar={() => setNuevo(false)}
           creado={() => {

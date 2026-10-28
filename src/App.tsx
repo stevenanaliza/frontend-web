@@ -21,6 +21,9 @@ import {
   ShieldCheck,
   Truck,
   Users,
+  MapPin,
+  Bike,
+  LayoutGrid,
   X,
 } from "lucide-react";
 import { useAuth } from "./auth";
@@ -42,7 +45,20 @@ import { Usuarios, DetalleUsuario } from "./Usuarios";
 import { Sucursales } from "./Sucursales";
 import { Evidencias } from "./evidencias";
 import { MiCuenta, NuevoUsuario } from "./GestionUsuarios";
-const iconos = [PackageSearch, Users, Building2, Truck, FileText];
+import { NuevaSolicitud } from "./NuevaSolicitud";
+import { Empresas, Ubicaciones } from "./Organizacion";
+import { Vehiculos } from "./Vehiculos";
+import { Administracion } from "./Administracion";
+const iconos = [
+  PackageSearch,
+  Users,
+  Building2,
+  Truck,
+  FileText,
+  Building2,
+  MapPin,
+  Bike,
+];
 
 function Proteccion() {
   const { perfil } = useAuth();
@@ -187,6 +203,10 @@ function Estructura() {
           </div>
         </div>
         <nav aria-label="Navegación principal">
+          <NavLink onClick={() => setMenu(false)} to="/administracion">
+            <LayoutGrid size={19} aria-hidden="true" />
+            Administración
+          </NavLink>
           {puedeVerReportes(perfil) && (
             <>
               <p className="nav-etiqueta">Operación</p>
@@ -370,6 +390,39 @@ export function App() {
       <Route path="/iniciar-sesion" element={<Login />} />
       <Route element={<Proteccion />}>
         <Route element={<Estructura />}>
+          <Route path="/administracion" element={<Administracion />} />
+          <Route
+            path="/solicitudes/nueva"
+            element={
+              <ProteccionModulo permisos={["solicitud.ver", "solicitud.crear"]}>
+                <NuevaSolicitud />
+              </ProteccionModulo>
+            }
+          />
+          <Route
+            path="/empresas"
+            element={
+              <ProteccionModulo permisos={["empresa.ver"]}>
+                <Empresas />
+              </ProteccionModulo>
+            }
+          />
+          <Route
+            path="/ubicaciones"
+            element={
+              <ProteccionModulo permisos={["ubicacion.ver"]}>
+                <Ubicaciones />
+              </ProteccionModulo>
+            }
+          />
+          <Route
+            path="/vehiculos"
+            element={
+              <ProteccionModulo permisos={["vehiculo.ver"]}>
+                <Vehiculos />
+              </ProteccionModulo>
+            }
+          />
           <Route element={<ProteccionReportes />}>
             <Route path="/resumenes" element={<Resumenes />} />
             <Route path="/motoristas/:id" element={<DetalleMotorista />} />

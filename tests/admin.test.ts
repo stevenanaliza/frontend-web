@@ -87,6 +87,27 @@ describe("Contratos administrativos y archivos privados", () => {
     );
     expect(opciones.cache).toBe("no-store");
   });
+  it("los permisos de catálogos operativos no conceden acceso al panel administrativo", () => {
+    expect(
+      puedeEntrar({
+        ...perfil,
+        permisos: [
+          "empresa.ver",
+          "sucursal.ver",
+          "ubicacion.ver",
+          "vehiculo.ver",
+          "solicitud.crear",
+          "solicitud.ver_propias",
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      puedeEntrar({
+        ...perfil,
+        permisos: ["ubicacion.aprobar", "ubicacion.ver"],
+      }),
+    ).toBe(true);
+  });
   it("rechaza HTML o SVG como archivo de evidencia", async () => {
     const fetcher = vi
       .fn<typeof fetch>()

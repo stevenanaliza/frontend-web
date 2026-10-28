@@ -22,6 +22,9 @@ export const puedeEntrar = (perfil: Perfil) =>
       "repartidor.administrar",
       "solicitud.asignar",
       "solicitud.ver",
+      "empresa.administrar",
+      "ubicacion.aprobar",
+      "vehiculo.administrar",
     ].includes(p),
   );
 export const modulosAdministrativos = [
@@ -57,8 +60,26 @@ export const modulosAdministrativos = [
     permisos: ["solicitud.ver", "evidencia.ver"],
     descripcion: "Consulta detallada de evidencias por solicitud.",
   },
+  {
+    ruta: "empresas",
+    nombre: "Empresas",
+    permisos: ["empresa.ver"],
+    descripcion: "Empresas y sus datos de contacto.",
+  },
+  {
+    ruta: "ubicaciones",
+    nombre: "Ubicaciones",
+    permisos: ["ubicacion.ver"],
+    descripcion: "Direcciones y autorizaciones de origen y destino.",
+  },
+  {
+    ruta: "vehiculos",
+    nombre: "Vehículos",
+    permisos: ["vehiculo.ver"],
+    descripcion: "Flota y registro de motocicletas.",
+  },
 ];
 export const rutaInicial = (perfil: Perfil) =>
   puedeVerReportes(perfil)
     ? "/resumenes"
-    : `/${modulosAdministrativos.find((m) => tieneTodos(perfil, m.permisos))?.ruta ?? "resumenes"}`;
+    : `/${modulosAdministrativos.find((m) => tieneTodos(perfil, m.permisos))?.ruta ?? "administracion"}`;

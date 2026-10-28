@@ -136,7 +136,7 @@ export function ErrorVista({
         </ul>
       )}
       {reintentar && (
-        <button className="boton secundario" onClick={reintentar}>
+        <button type="button" className="boton secundario" onClick={reintentar}>
           <RefreshCw size={16} aria-hidden="true" />
           Volver a intentar
         </button>

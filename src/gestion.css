@@ -4,6 +4,54 @@
   padding: 0;
   min-width: 0;
 }
+.acciones-admin {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.acceso-admin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.acceso-admin h2 {
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+.acceso-admin p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.acceso-admin:hover {
+  border-color: var(--primary);
+}
+.acceso-admin > svg {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+.articulo-form {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  margin: 18px 0;
+  min-width: 0;
+}
+.articulo-form legend {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 0 8px;
+}
+@media (max-width: 700px) {
+  .acciones-admin {
+    grid-template-columns: 1fr;
+  }
+}
 .panel + .formulario-edicion {
   margin-top: 24px;
 }
