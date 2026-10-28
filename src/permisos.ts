@@ -25,6 +25,7 @@ export const puedeEntrar = (perfil: Perfil) =>
       "empresa.administrar",
       "ubicacion.aprobar",
       "vehiculo.administrar",
+      "configuracion.administrar",
     ].includes(p),
   );
 export const modulosAdministrativos = [
@@ -49,10 +50,10 @@ export const modulosAdministrativos = [
   },
   {
     ruta: "motoristas",
-    nombre: "Motoristas y límites",
+    nombre: "Motoristas",
     permisos: ["repartidor.ver"],
     descripcion:
-      "Administración de motoristas y configuración del límite de tubos.",
+      "Administración de motoristas y consulta de su cupo individual efectivo.",
   },
   {
     ruta: "evidencias",

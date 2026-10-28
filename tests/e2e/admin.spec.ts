@@ -28,11 +28,16 @@ async function backendAdmin(
     ...perfil,
     permisos: opciones.soloSolicitudes
       ? ["solicitud.ver"]
-      : [...perfil.permisos, "usuario.administrar"],
+      : [
+          ...perfil.permisos,
+          "usuario.administrar",
+          "empresa.ver",
+          "empresa.administrar",
+        ],
   };
   if (opciones.sinEditarLimite)
     perfilAdmin.permisos = perfilAdmin.permisos.filter(
-      (p) => p !== "repartidor.administrar",
+      (p) => p !== "empresa.administrar",
     );
   const pagina = (resultados: unknown[]) => ({
     conteo: resultados.length,
@@ -106,10 +111,10 @@ async function backendAdmin(
     if (ruta === "/api/v1/repartidores/")
       return responder(pagina([estadoMotorista]));
     if (
-      ruta === `/api/v1/repartidores/${motorista.id}/` &&
-      req.method() === "PATCH"
+      ruta ===
+      `/api/v1/organizaciones/empresas/${perfil.empresa.id}/limites-motoristas/`
     ) {
-      if (opciones.errorLimite)
+      if (opciones.errorLimite && req.method() === "PATCH")
         return responder(
           {
             limite_tubos: [
@@ -118,11 +123,19 @@ async function backendAdmin(
           },
           400,
         );
-      estadoMotorista = {
-        ...estadoMotorista,
-        limite_tubos: (cuerpo as { limite_tubos: number }).limite_tubos,
-      };
-      return responder(estadoMotorista);
+      if (req.method() === "PATCH")
+        estadoMotorista = {
+          ...estadoMotorista,
+          limite_tubos: (cuerpo as { limite_tubos: number }).limite_tubos,
+          limite_solicitudes: (cuerpo as { limite_solicitudes: number })
+            .limite_solicitudes,
+        };
+      return responder({
+        empresa_id: perfil.empresa.id,
+        alcance: "EMPRESA",
+        limite_tubos: estadoMotorista.limite_tubos,
+        limite_solicitudes: estadoMotorista.limite_solicitudes,
+      });
     }
     if (ruta === "/api/v1/usuarios/") return responder(pagina([estadoUsuario]));
     if (ruta === `/api/v1/usuarios/${usuario.id}/roles/`)
@@ -233,20 +246,25 @@ test("guarda el límite con motivo una sola vez y muestra la respuesta", async (
 }) => {
   const peticiones = await backendAdmin(page);
   await entrar(page);
-  await page.getByRole("link", { name: "Motoristas y límites" }).click();
-  await page.getByRole("button", { name: "Configurar límite" }).click();
-  await page.getByLabel("Nuevo límite de tubos").fill("30");
+  await page
+    .getByRole("link", { name: "Límites de motoristas", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Editar límites compartidos" })
+    .click();
+  await page.getByLabel("Límite de tubos por motorista").fill("30");
   await page.getByLabel("Motivo del cambio").fill("Contenedor aprobado");
   await page
-    .getByRole("button", { name: "Guardar límite", exact: true })
+    .getByRole("button", { name: "Guardar límites", exact: true })
     .click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Límite actualizado" }),
-  ).toContainText("Límite actualizado a 30 tubos");
+    page.getByRole("status").filter({ hasText: "Límites actualizados" }),
+  ).toContainText("30 tubos y 5 solicitudes activas por motorista");
   const cambios = peticiones.filter((p) => p.metodo === "PATCH");
   expect(cambios).toHaveLength(1);
   expect(cambios[0].cuerpo).toEqual({
     limite_tubos: 30,
+    limite_solicitudes: 5,
     motivo: "Contenedor aprobado",
   });
 });
@@ -255,17 +273,21 @@ test("conserva valores y errores por campo del límite sin reintentar", async ({
 }) => {
   const peticiones = await backendAdmin(page, { errorLimite: true });
   await entrar(page);
-  await page.goto("/motoristas");
-  await page.getByRole("button", { name: "Configurar límite" }).click();
-  await page.getByLabel("Nuevo límite de tubos").fill("1");
+  await page.goto("/limites-motoristas");
+  await page
+    .getByRole("button", { name: "Editar límites compartidos" })
+    .click();
+  await page.getByLabel("Límite de tubos por motorista").fill("1");
   await page.getByLabel("Motivo del cambio").fill("Revisión de cupo");
   await page
-    .getByRole("button", { name: "Guardar límite", exact: true })
+    .getByRole("button", { name: "Guardar límites", exact: true })
     .click();
   await expect(page.locator("#limite_tubos-error")).toContainText(
     "tubos comprometidos",
   );
-  await expect(page.getByLabel("Nuevo límite de tubos")).toHaveValue("1");
+  await expect(page.getByLabel("Límite de tubos por motorista")).toHaveValue(
+    "1",
+  );
   await expect(page.getByLabel("Motivo del cambio")).toHaveValue(
     "Revisión de cupo",
   );

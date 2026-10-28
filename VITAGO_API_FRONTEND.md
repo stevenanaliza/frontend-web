@@ -18,7 +18,14 @@ El código del backend sigue siendo la fuente técnica definitiva. Este archivo
 es la referencia de integración para el frontend y solo presenta como
 **disponibles** las funciones que ya están implementadas.
 
-Última actualización: **2026-10-26**.
+Última actualización: **2026-10-28**.
+
+Actualización **0.41.0**: configuración de cupos compartida, aplicada al cupo
+individual de cada motorista. Corporate configura por empresa; Network usa una
+configuración general para todas sus empresas. Se retira PATCH de límites por
+motorista. Perfiles/listados/resúmenes conservan los campos calculados. Nuevos
+GET/PATCH y entrega exacta al frontend en la sección0.41.0 al final. Migración
+aplicada en ambas bases locales; publicación y migración externa pendientes.
 
 Actualización **0.37.0**: ENTRE_SUCURSALES de Corporate permite distintas ciudades
 y municipios del mismo país/departamento y empresa, sin límite adicional de km.
@@ -158,6 +165,9 @@ ni cambia conexiones; el mapa móvil y su clave SDK corresponden al frontend.
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 0.41.0 | 2026-10-28 | Límites por empresa en Corporate y generales de Network, con cupo individual, configuración auditada y edición individual retirada. 741 pruebas aprobadas/24 PG omitidas; migración aplicada localmente. |
+| 0.40.2 | 2026-10-27 | CORS por origen web explícito para API v1; dominio Render y origen Vercel configurados, JWT/móvil conservados. 723 pruebas aprobadas/22 PG omitidas; pendiente publicar/desplegar código. |
+| 0.40.1 | 2026-10-27 | Arranque de Corporate con login propio en Render mediante ENTORNO=PRUEBAS, conservando seguridad de producción. Sin cambios de endpoints/JSON; variables y comandos en README. Base externa aún sin preparar/verificar. |
 | 0.37.0 | 2026-10-26 | Corporate ENTRE_SUCURSALES por misma empresa/país/departamento, admitiendo otras ciudades/municipios y viajes largos. Flota Corporate exclusiva por empresa; candidatos Network globales entre clientes, sin mezclar visibilidad. 25 regresiones;624 aprobadas/21 PG omitidas. Sin migraciones/red/datos alterados. |
 | 0.36.1 | 2026-10-26 | Solo carga de datos: 34 sucursales/ubicaciones y 34 cuentas limitadas a su sucursal en Analiza Corporate; coordenadas normalizadas no verificadas. Se conservan dos sucursales de prueba. Sin cambios HTTP/lógica/red; 34 credenciales y 34 opciones de creación comprobadas. |
 | 0.36.0 | 2026-10-26 | Flujo automático: activa solo el vigente, GPS acredita llegada, foto válida completa etapa y activa siguiente. Mi-ruta añade flujo_actual; evidencia añade estado_solicitud. Sin aceptación/selección de etapa; especial sin destino conserva señal manual. Sin migraciones/Google. 599 pruebas aprobadas y 21 PostgreSQL omitidas. |
@@ -303,6 +313,10 @@ nombre predeterminado del claim es `sub`, aunque es configurable por despliegue.
 | `DELETE` | `/api/v1/usuarios/{usuario_id}/roles/{asignacion_id}/` | Ambos | Bearer + `usuario.administrar` y `rol.asignar` en alcance | `204` |
 | `GET` | `/api/v1/organizaciones/empresas/` | Ambos | Bearer + `empresa.ver` | `200` |
 | `GET` | `/api/v1/organizaciones/empresas/{empresa_id}/` | Ambos | Bearer + `empresa.ver` en alcance | `200` |
+| `GET` | `/api/v1/organizaciones/empresas/{empresa_id}/limites-motoristas/` | Ambos | Bearer + `empresa.ver` en alcance | `200` |
+| `PATCH` | `/api/v1/organizaciones/empresas/{empresa_id}/limites-motoristas/` | Corporate | `empresa.administrar` con alcance completo de empresa/global | `200` |
+| `GET` | `/api/v1/organizaciones/configuracion/limites-motoristas/` | Network | Bearer | `200` |
+| `PATCH` | `/api/v1/organizaciones/configuracion/limites-motoristas/` | Network | `configuracion.administrar` global | `200` |
 | `GET` | `/api/v1/organizaciones/empresas/{empresa_id}/sucursales/` | Ambos | Bearer + `sucursal.ver` en alcance | `200` |
 | `POST` | `/api/v1/organizaciones/empresas/{empresa_id}/sucursales/` | Ambos | Bearer + `sucursal.administrar` en alcance | `201` |
 | `GET` | `/api/v1/organizaciones/sucursales/{sucursal_id}/` | Ambos | Bearer + `sucursal.ver` en alcance | `200` |
@@ -5887,6 +5901,11 @@ ni se crearon viajes, solicitudes, GPS o evidencias de prueba en bases reales.
 
 ## Cantidad de tubos y temperatura de recolección (0.39.0, 2026-10-27)
 
+**Configuración individual sustituida por0.41.0:** ya no se modifican límites
+mediante PATCH repartidores/{id}/. Corporate configura por empresa y Network
+para toda la red. La cantidad declarada, temperatura y evidencias de esta sección
+siguen vigentes. Los párrafos sobre editar el límite individual son históricos.
+
 Aplica a **Corporate y Network**, confirmado por el usuario. Etiqueta del
 formulario: **Cantidad de tubos**. El administrador configura un límite para
 cada motorista, inicialmente **20**. Se mantiene además el límite de **cinco
@@ -6351,3 +6370,225 @@ semilla4003, proveedor Google bloqueado. check y makemigrations --check --dry-ru
 correctos. Comprobación real con APIClient/PostgreSQL READ ONLY: los tres nuevos
 GET200, conservando datos. Sin modelos, migraciones, escrituras operativas,
 cambios de conexión/.env/servidores/tareas ni consultas externas.
+
+## Corporate de pruebas en Render (0.40.1, 2026-10-27)
+
+Diagnóstico de integración posterior (2026-10-27): los POST móviles de16:22:16
+y16:22:25 -0600 llegan y devuelven500; el log aportado no contiene traceback.
+La primera comprobación se hizo en db_prueba porque así figuraba en el archivo
+de entorno; esa no era la base de VitaGo. El usuario identifica vitago_corporativo
+como destino correcto: verificación externa READ ONLY confirma37usuarios,
+tablas de autenticación presentes e historial consistente con0migraciones pendientes.
+No hace falta crear otra base ni aplicar migraciones para este ajuste.
+URL_BASE_DATOS y NOMBRE_BASE_DATOS ya corregidos en .env.render.corporativo;
+pendiente copiar variables a Render y reiniciar. Mantener URL pública/JSON/origen
+Vercel y configuración móvil. Sin escrituras de datos ni login real durante la revisión.
+
+### Actualización de dominios y CORS (0.40.2)
+
+La base para la web y el móvil es `https://vitago.onrender.com/api/v1/`.
+En el entorno del backend:
+
+```env
+SERVIDORES_PERMITIDOS=vitago.onrender.com
+ORIGENES_WEB_PERMITIDOS=https://frontend-web-eight-self.vercel.app
+```
+
+El primero identifica al servidor de API; el segundo autoriza el origen web
+completo, con HTTPS y sin barra final. CORS solo se aplica a `/api/v1/`, mediante
+django-cors-headers4.9.0. Por defecto no autoriza sitios; no permite wildcard,
+previews ni todos los subdominios de Vercel. Agregar varios orígenes explícitos
+separados por comas si son necesarios en ese despliegue.
+
+Web: enviar `Authorization: Bearer <token>`, sin cookies/withCredentials. Los
+preflight OPTIONS admiten authorization/content-type y los métodos de API.
+Las respuestas reales conservan autenticación y validación: una web autorizada
+sin token sigue recibiendo401. Retry-After y Server-Timing quedan expuestos al
+navegador. Clientes móviles nativos sin Origin continúan igual. CORS no es un
+permiso para leer solicitudes de otras empresas ni sustituye el alcance del rol.
+
+Sin cambios en JSON/endpoints ni migraciones.8 pruebas nuevas CORS y11 de
+arranque:745casos,723 aprobados/22PGomitidos,semilla4002; check/dry-run correctos.
+Archivo privado real comprobado WSGI/preflight/salud200 sin SQL/Google. Código
+pendiente de publicación: importar solo env no añade CORS al servidor anterior.
+
+Configuración privada del backend lista en `.env.render.corporativo`: copiar en
+Environment de Render y completar la contraseña PostgreSQL en URL_BASE_DATOS.
+No distribuir al frontend ni subir a Git. Incluye secretos nuevos de ese despliegue
+y la configuración actual de Google; no modifica los entornos locales. Validada
+sin conectar a PostgreSQL ni llamar Google. El código aún requiere publicación.
+
+El módulo `config.settings.production` permite el login propio de Corporate con
+`ENTORNO=PRUEBAS`, `MODO_APLICACION=CORPORATIVO` y
+`PROVEEDOR_AUTENTICACION=LOCAL`. Conserva `DEBUG=False`, HTTPS, secretos de firma
+y refresco independientes, roles y permisos. Corporate LOCAL con otro ENTORNO
+en ese módulo se rechaza. El desarrollo local y Network conservan su comportamiento.
+
+No cambian JSON ni rutas de iniciar-sesion, renovar o cerrar-sesion. El móvil y
+la web deben usar `https://<servicio>.onrender.com/api/v1/` cuando esté desplegado;
+el nombre real del servicio aún debe confirmarse. No llevan claves de Django,
+JWT, Google servidor ni la URL de PostgreSQL en el cliente.
+
+Build: `pip install -r requirements/render.txt`. Start:
+`python -m gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`.
+Root Directory vacío si manage.py está en la raíz del repositorio. Variables y
+claves requeridas en README, sección Corporate en Render para pruebas. Render
+aporta su hostname exacto autorizado y el proxy HTTPS; no se usa wildcard.
+
+La base externa db_prueba será exclusiva de Corporate, según confirmó el usuario.
+No se conectó ni se aplicaron tablas/copiaron cuentas. No hay migraciones en
+Build/Start; la preparación de esa base es posterior. Salud200 acredita solo
+el proceso. Este cambio local aún requiere publicación en GitHub; no se realizó
+commit/push ni se modificaron .env, servidores o tareas locales.
+
+11 regresiones nuevas verifican opt-in, secretos, aislamiento de configuración
+local y arranque WSGI/salud200 sin SQL ni bucles HTTPS. Suite737 casos:715 aprobados,
+22 omitidos por requerir PostgreSQL,semilla4001. check y dry-run sin cambios.
+
+## Límites compartidos de motoristas (0.41.0, 2026-10-28)
+
+### Regla y alcance
+
+La configuración se hace una sola vez; cada motorista tiene su propio cupo.
+Si el límite de tubos es20, dos motoristas pueden llevar20 cada uno. No comparten
+un fondo de20 entre ambos. Valores iniciales:20 tubos y5 solicitudes activas.
+
+- **Corporate:** una configuración por empresa, común a toda su flota.
+- **Network:** una única configuración para toda la red y todas las empresas
+  clientes. Un motorista suma su carga de todos los clientes al mismo cupo.
+  Los límites particulares de una empresa cliente no cambian ese cupo.
+
+Las solicitudes activas siguen siendo ASSIGNED,GOING_TO_PICKUP,AT_PICKUP,
+PICKED_UP,IN_TRANSIT y AT_DESTINATION. PENDING y terminales no cuentan. Los tubos
+se reservan desde la asignación. Se conservan GPS/cercanía, prioridad, especiales,
+estados operativos y demás condiciones de elegibilidad.
+
+### Corporate: consultar o configurar una empresa
+
+```http
+GET /api/v1/organizaciones/empresas/{empresa_id}/limites-motoristas/
+PATCH /api/v1/organizaciones/empresas/{empresa_id}/limites-motoristas/
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+GET exige empresa.ver en su alcance. PATCH exige empresa.administrar con alcance
+global o completo de esa empresa; un permiso limitado a sucursal no basta.
+
+Ejemplo de PATCH (puede enviar uno o ambos límites):
+
+```json
+{
+  "limite_tubos": 25,
+  "limite_solicitudes": 3,
+  "motivo": "Configuración general de los contenedores"
+}
+```
+
+Respuesta200:
+
+```json
+{
+  "empresa_id": "395be863-81e1-4196-a668-b698af836653",
+  "alcance": "EMPRESA",
+  "limite_tubos": 25,
+  "limite_solicitudes": 3
+}
+```
+
+El cambio aplica a todos los motoristas de esa empresa. Otra empresa conserva
+su configuración. GET de una empresa en Network devuelve alcanceRED y los límites
+generales; su PATCH responde400 e indica la ruta de configuración general.
+
+### Network: consultar o configurar la red
+
+```http
+GET /api/v1/organizaciones/configuracion/limites-motoristas/
+PATCH /api/v1/organizaciones/configuracion/limites-motoristas/
+Authorization: Bearer <token>
+```
+
+GET requiere sesión. PATCH exige configuracion.administrar con alcanceGLOBAL;
+el administrador de una empresa cliente no modifica la capacidad de toda la red.
+El cuerpo de PATCH es el mismo del ejemplo anterior. Respuesta200:
+
+```json
+{
+  "alcance": "RED",
+  "limite_tubos": 25,
+  "limite_solicitudes": 3
+}
+```
+
+Este endpoint devuelve404 en Corporate. Un GET no crea ni modifica configuración.
+
+### Validación, compatibilidad y disponibilidad
+
+limite_tubos es un entero positivo (máximo2147483647). limite_solicitudes admite
+1 a5: se conserva el máximo operativo de cinco; el administrador puede reducirlo.
+motivo es opcional, máximo1000 caracteres. Debe enviarse al menos un límite;
+campos desconocidos, booleanos, fracciones y valores fuera de rango producen400.
+Los errores conservan limite_tubos o limite_solicitudes como claves cuando aplica.
+
+No se permite reducir un límite por debajo de la carga comprometida de ningún
+motorista afectado. Para bajar tubos con cantidades activas desconocidas se pide
+regularizarlas primero. La validación no devuelve identidades/cargas de otros
+clientes. Se auditan actor, fecha de servidor, alcance, valores anteriores/nuevos
+y motivo. Repetir los mismos valores devuelve200 sin duplicar el historial.
+
+GET organizaciones/empresas/ y empresas/{id}/ añaden:
+
+```json
+{
+  "limites_motoristas": {
+    "alcance": "EMPRESA",
+    "limite_tubos": 25,
+    "limite_solicitudes": 3
+  }
+}
+```
+
+En Network alcance esRED. Los perfiles/listados de repartidores y carga_actual
+de los resúmenes conservan limite_tubos y limite_solicitudes; ahora informan los
+valores compartidos vigentes. tubos_disponibles, capacidad y puede_recibir_solicitudes
+se calculan con esos valores. FULL resulta de alcanzar cualquiera de los cupos
+o de tener cantidades activas desconocidas. disponibles/?cantidad_tubos=N y las
+asignaciones usan la misma configuración. El servidor continúa siendo la autoridad.
+
+PATCH /api/v1/repartidores/{id}/ ya no configura límites: devuelve400 por campo
+para un motorista autorizado. El dato individual antiguo permanece en la base
+por compatibilidad histórica, sin gobernar cupos ni permitir edición desde API.
+Su historial operativo previo se conserva. Los cálculos de carga continúan
+respetando las seis etapas activas, las reasignaciones y los cierres.
+
+Asignar/corregir carga bloquea solicitud→motorista y lee la configuración con
+bloqueo compartido. Cambiar configuración toma un bloqueo de escritura compatible
+con las referencias FK, sin invertir el orden con el motorista. Dos asignaciones
+a motoristas distintos pueden validar límites simultáneamente; un cambio de límite
+espera las validaciones en curso y vuelve a comprobar la carga ya confirmada.
+Al ampliar cupo Corporate se reintentan pendientes después del commit, con las
+reglas actuales. No cambia la fase de cotización/creación disponible en Network.
+
+### Entrega al frontend y despliegue
+
+Mover el formulario del límite desde cada motorista a configuración de la empresa
+en Corporate. Para Network, mostrar una sola configuración general de red a quien
+tenga el permiso global. Usar alcance y los permisos del backend para escoger
+el formulario. El móvil muestra los valores efectivos que recibe; no los guarda
+como configuración individual ni envía capacidad manual. Refrescar empresa,
+motoristas y disponibles después de guardar. Mostrar400/403/409 con sus campos,
+sin convertirlos en errores de conexión.
+
+Migración organizaciones.0003_limites_motoristas_compartidos: dos columnas en
+Empresa y tablas limites_motoristas_red/historial_limites_motoristas. Inicializa
+la configuración20/5, conserva columnas y datos anteriores. Aplicada en ambas
+bases locales con conteos operativos conservados. La base externa vitago_corporativo
+todavía requiere esta migración antes de desplegar el código0.41.0; el prechequeo
+confirma un único paso pendiente y permisos de esquema. No se aplicó DDL externo.
+
+Verificación:18 regresiones funcionales nuevas y2 pruebas PostgreSQL específicas;
+suite765 casos,741 aprobados/24 omitidos por PostgreSQL,semilla4100,Google bloqueado.
+check y dry-run correctos. Además, nueve GET200 en PostgreSQL local con transacciones
+READ ONLY y una comprobación real de lectores/escritor en ambos modos mediante
+SELECT/bloqueos/rollback, conservando valores. Sin cambios de frontend, .env, IP,
+servidores o tareas. No se realizó commit/push ni publicación de secretos.

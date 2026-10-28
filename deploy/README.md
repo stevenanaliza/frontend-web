@@ -113,6 +113,12 @@ La nueva entrada `/administracion` reúne las altas disponibles. Se incorporan `
 
 La validación utiliza catálogos y escrituras aisladas de Playwright, sin crear registros en producción. Las empresas permanecen de consulta y no se ofrecen operaciones que la API actual no expone. Al publicar, comprobar el estado `READY`, el commit de `main`, el JavaScript nuevo y la carga directa de las nuevas rutas; el acceso con una cuenta real continúa siendo una comprobación independiente.
 
+## Adaptación 0.41.0 pendiente de publicar
+
+La copia local mueve los límites de motoristas a la configuración compartida de empresa o red. Antes de publicar esta adaptación, el servicio debe disponer del código 0.41.0 y de la migración `organizaciones.0003_limites_motoristas_compartidos` en su base externa, pendientes según el contrato recibido. Una respuesta 404 en la nueva configuración se muestra sin habilitar el PATCH individual retirado.
+
+Esta adaptación no modifica backend, móvil, entornos ni despliegues. El usuario realiza todas las operaciones de Git; no se ejecutan desde el asistente.
+
 ## Desarrollo local
 
 `npm run dev` usa el puerto 5173. En `.env.local`, `VITE_API_URL` apunta al backend local. Puede conservarse `VITE_API_PROXY=true` solo para desarrollo: Vite reenvía las rutas `/api/v1/`, sin gestionar tokens ni sesiones. En producción el navegador siempre consulta directamente Django, independientemente de ese valor.

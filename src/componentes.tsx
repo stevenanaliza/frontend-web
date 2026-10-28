@@ -196,6 +196,9 @@ export function Paginacion({
     </div>
   );
 }
+export function invalidarConsultasMotoristas() {
+  window.dispatchEvent(new Event("vitago:cupos-actualizados"));
+}
 export function useConsulta<T>(
   cargar: (signal: AbortSignal) => Promise<T>,
   clave: string,
@@ -209,6 +212,19 @@ export function useConsulta<T>(
   const [version, setVersion] = useState(0);
   const cargarRef = useRef(cargar);
   cargarRef.current = cargar;
+  useEffect(() => {
+    if (
+      clave.includes("/limites-motoristas/") ||
+      !/^\/api\/v1\/(organizaciones\/(empresas|configuracion)|repartidores)\//.test(
+        clave,
+      )
+    )
+      return;
+    const actualizar = () => setVersion((v) => v + 1);
+    window.addEventListener("vitago:cupos-actualizados", actualizar);
+    return () =>
+      window.removeEventListener("vitago:cupos-actualizados", actualizar);
+  }, [clave]);
   useEffect(() => {
     const controller = new AbortController();
     let vigente = true;

@@ -34,8 +34,9 @@ export function Empresas() {
         cargando={listado.cargando}
       />
       <p className="aviso">
-        Las empresas se consultan en este panel. Su alta y edición requieren la
-        administración del servicio.
+        El alta y la edición de los datos de empresa requieren la administración
+        del servicio. Los límites de motoristas se configuran por separado según
+        tus permisos.
       </p>
       <Panel titulo="Empresas de tu alcance">
         <TablaRemota consulta={listado} tituloVacio="Sin empresas visibles">
@@ -53,6 +54,7 @@ export function Empresas() {
                     <th>País</th>
                     <th>Contacto</th>
                     <th>Estado</th>
+                    <th>Límites por motorista</th>
                     <th>Administración</th>
                   </tr>
                 </thead>
@@ -80,7 +82,33 @@ export function Empresas() {
                         </Etiqueta>
                       </td>
                       <td>
+                        {e.limites_motoristas ? (
+                          <>
+                            <strong>
+                              {e.limites_motoristas.limite_tubos} tubos
+                            </strong>
+                            <small>
+                              {e.limites_motoristas.limite_solicitudes}{" "}
+                              solicitudes activas
+                            </small>
+                            <small>
+                              {e.limites_motoristas.alcance === "RED"
+                                ? "Configuración general de red"
+                                : "Configuración de empresa"}
+                            </small>
+                          </>
+                        ) : (
+                          "Sin configuración informada"
+                        )}
+                      </td>
+                      <td>
                         <div className="acciones">
+                          <Link
+                            className="boton secundario"
+                            to={`/limites-motoristas?empresa_id=${encodeURIComponent(e.id)}`}
+                          >
+                            Límites de motoristas
+                          </Link>
                           {[
                             ["sucursal.ver", "sucursales", "Sucursales"],
                             ["ubicacion.ver", "ubicaciones", "Ubicaciones"],

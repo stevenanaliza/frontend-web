@@ -54,6 +54,13 @@ const acciones = [
     texto: "Datos de organizaciones y acceso a sus sedes y flotas.",
   },
   {
+    nombre: "Límites de motoristas",
+    ruta: "/limites-motoristas",
+    permisos: ["empresa.ver"],
+    texto:
+      "Configuración compartida de tubos y solicitudes, con cupo individual por motorista.",
+  },
+  {
     nombre: "Gestionar ubicaciones",
     ruta: "/ubicaciones",
     permisos: ["ubicacion.ver"],
@@ -70,6 +77,23 @@ export function Administracion() {
         texto="Crea y gestiona los registros de VitaGo dentro de tu alcance autorizado."
       />
       <div className="acciones-admin">
+        {!perfil.permisos.includes("empresa.ver") &&
+          perfil.permisos.includes("configuracion.administrar") &&
+          perfil.roles.some((r) => r.tipo_alcance === "GLOBAL") && (
+            <Link
+              className="panel acceso-admin"
+              to="/limites-motoristas?alcance=RED"
+            >
+              <div>
+                <h2>Límites generales de Network</h2>
+                <p>
+                  Configura el cupo individual de todos los motoristas de la
+                  red.
+                </p>
+              </div>
+              <ArrowRight size={20} aria-hidden="true" />
+            </Link>
+          )}
         {acciones
           .filter((a) => tieneTodos(perfil, a.permisos))
           .map((a) => (

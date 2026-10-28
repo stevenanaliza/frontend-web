@@ -1,134 +1,23 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Settings2, Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { useAuth } from "./auth";
-import { api, parsear } from "./api";
-import { motoristaSchema, type Motorista } from "./contratos-admin";
+import { motoristaSchema } from "./contratos-admin";
 import {
   Cabecera,
-  Campo,
-  ErroresFormulario,
   Filtros,
   TablaRemota,
   usePaginaRemota,
 } from "./admin-comunes";
-import { ErrorCampo, Etiqueta, Panel, estados, numero } from "./componentes";
+import { Etiqueta, Panel, estados, numero } from "./componentes";
 import { puedeVerReportes } from "./permisos";
 import { NuevoMotorista } from "./Altas";
 
-function EditarLimite({
-  motorista,
-  cerrar,
-  guardado,
-}: {
-  motorista: Motorista;
-  cerrar: () => void;
-  guardado: (motorista: Motorista) => void;
-}) {
-  const [error, setError] = useState<unknown>(null);
-  const [ocupado, setOcupado] = useState(false);
-  const enviando = useRef(false);
-  async function guardar(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (enviando.current) return;
-    enviando.current = true;
-    setOcupado(true);
-    setError(null);
-    const datos = new FormData(event.currentTarget);
-    try {
-      const actualizado = parsear(
-        motoristaSchema,
-        await api.solicitar(
-          `/api/v1/repartidores/${encodeURIComponent(motorista.id)}/`,
-          {
-            method: "PATCH",
-            body: JSON.stringify({
-              limite_tubos: Number(datos.get("limite_tubos")),
-              motivo: String(datos.get("motivo")).trim(),
-            }),
-          },
-        ),
-      );
-      guardado(actualizado);
-    } catch (e) {
-      setError(e);
-    } finally {
-      enviando.current = false;
-      setOcupado(false);
-    }
-  }
-  return (
-    <section
-      className="panel formulario-edicion"
-      aria-labelledby="editar-limite-titulo"
-    >
-      <div className="panel-cabecera">
-        <h2 id="editar-limite-titulo">
-          Límite de tubos de {motorista.usuario.nombres}{" "}
-          {motorista.usuario.apellidos}
-        </h2>
-        <button
-          className="boton icono"
-          aria-label="Cerrar configuración de límite"
-          disabled={ocupado}
-          onClick={cerrar}
-        >
-          <X size={19} />
-        </button>
-      </div>
-      <form onSubmit={guardar}>
-        <ErroresFormulario error={error} />
-        <p className="ayuda-form">
-          Carga conocida actual: {numero(motorista.tubos_comprometidos)} tubos
-          comprometidos. El servidor valida el nuevo límite y registra el
-          motivo.
-        </p>
-        <div className="form-grid">
-          <Campo
-            nombre="limite_tubos"
-            etiqueta="Nuevo límite de tubos"
-            type="number"
-            min={1}
-            max={2147483647}
-            step={1}
-            defaultValue={motorista.limite_tubos}
-            required
-            error={error}
-          />
-          <label className="campo-form" htmlFor="motivo">
-            Motivo del cambio
-            <textarea
-              id="motivo"
-              name="motivo"
-              required
-              rows={3}
-              aria-describedby="motivo-error"
-            />
-            <ErrorCampo error={error} campo="motivo" />
-          </label>
-        </div>
-        <div className="acciones-form">
-          <button
-            className="boton secundario"
-            type="button"
-            disabled={ocupado}
-            onClick={cerrar}
-          >
-            Cancelar
-          </button>
-          <button className="boton primario" disabled={ocupado}>
-            {ocupado ? "Guardando…" : "Guardar límite"}
-          </button>
-        </div>
-      </form>
-    </section>
-  );
-}
 export function Motoristas() {
   const { perfil } = useAuth();
   const [params] = useSearchParams();
+  const empresa = params.get("empresa_id") ?? perfil?.empresa?.id ?? "";
   const [nuevo, setNuevo] = useState(params.get("crear") === "1");
-  const [seleccion, setSeleccion] = useState<Motorista | null>(null);
   const [mensaje, setMensaje] = useState("");
   const listado = usePaginaRemota("/api/v1/repartidores/", motoristaSchema, {
     empresa_id: params.get("empresa_id") ?? "",
@@ -139,16 +28,29 @@ export function Motoristas() {
   return (
     <>
       <Cabecera
-        titulo="Motoristas y límites"
+        titulo="Motoristas"
         texto="Estado operativo, capacidad y límites calculados por el servidor."
         recargar={listado.recargar}
         cargando={listado.cargando}
         accion={
-          perfil?.permisos.includes("repartidor.administrar") ? (
-            <button className="boton primario" onClick={() => setNuevo(!nuevo)}>
-              Crear motorista
-            </button>
-          ) : undefined
+          <>
+            {perfil?.permisos.includes("empresa.ver") && (
+              <Link
+                className="boton secundario"
+                to={`/limites-motoristas${empresa ? `?empresa_id=${encodeURIComponent(empresa)}` : ""}`}
+              >
+                Límites compartidos
+              </Link>
+            )}
+            {perfil?.permisos.includes("repartidor.administrar") ? (
+              <button
+                className="boton primario"
+                onClick={() => setNuevo(!nuevo)}
+              >
+                Crear motorista
+              </button>
+            ) : undefined}
+          </>
         }
       />
       {nuevo && perfil?.permisos.includes("repartidor.administrar") && (
@@ -202,21 +104,11 @@ export function Motoristas() {
           {mensaje}
         </div>
       )}
-      {seleccion && (
-        <EditarLimite
-          key={seleccion.id}
-          motorista={seleccion}
-          cerrar={() => setSeleccion(null)}
-          guardado={(actualizado) => {
-            setMensaje(
-              `Límite actualizado a ${actualizado.limite_tubos} tubos para ${actualizado.usuario.nombres}.`,
-            );
-            setSeleccion(null);
-            listado.recargar();
-          }}
-        />
-      )}
       <Panel titulo="Directorio de motoristas">
+        <p className="panel-nota">
+          Cada motorista tiene su propio cupo, calculado con los límites
+          compartidos vigentes de su empresa o red.
+        </p>
         <TablaRemota
           consulta={listado}
           tituloVacio="No hay motoristas para estos filtros"
@@ -284,25 +176,6 @@ export function Motoristas() {
                       </td>
                       <td>
                         <div className="acciones-celda">
-                          {perfil?.permisos.includes(
-                            "repartidor.administrar",
-                          ) && (
-                            <button
-                              className="boton secundario"
-                              onClick={() => {
-                                setSeleccion(m);
-                                setMensaje("");
-                                requestAnimationFrame(() =>
-                                  document
-                                    .getElementById("limite_tubos")
-                                    ?.focus(),
-                                );
-                              }}
-                            >
-                              <Settings2 size={16} aria-hidden="true" />
-                              Configurar límite
-                            </button>
-                          )}
                           {perfil && puedeVerReportes(perfil) && (
                             <Link
                               className="boton texto"

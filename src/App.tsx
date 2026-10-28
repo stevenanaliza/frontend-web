@@ -49,6 +49,7 @@ import { NuevaSolicitud } from "./NuevaSolicitud";
 import { Empresas, Ubicaciones } from "./Organizacion";
 import { Vehiculos } from "./Vehiculos";
 import { Administracion } from "./Administracion";
+import { LimitesMotoristas } from "./LimitesMotoristas";
 const iconos = [
   PackageSearch,
   Users,
@@ -215,6 +216,21 @@ function Estructura() {
                 Resúmenes diarios
               </NavLink>
             </>
+          )}
+          {(perfil.permisos.includes("empresa.ver") ||
+            (perfil.permisos.includes("configuracion.administrar") &&
+              perfil.roles.some((r) => r.tipo_alcance === "GLOBAL"))) && (
+            <NavLink
+              onClick={() => setMenu(false)}
+              to={
+                perfil.permisos.includes("empresa.ver")
+                  ? "/limites-motoristas"
+                  : "/limites-motoristas?alcance=RED"
+              }
+            >
+              <Layers3 size={19} aria-hidden="true" />
+              Límites de motoristas
+            </NavLink>
           )}
           {modulosAdministrativos.some((m) =>
             tieneTodos(perfil, m.permisos),
@@ -390,6 +406,7 @@ export function App() {
       <Route path="/iniciar-sesion" element={<Login />} />
       <Route element={<Proteccion />}>
         <Route element={<Estructura />}>
+          <Route path="/limites-motoristas" element={<LimitesMotoristas />} />
           <Route path="/administracion" element={<Administracion />} />
           <Route
             path="/solicitudes/nueva"

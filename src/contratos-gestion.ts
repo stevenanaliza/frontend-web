@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { empresaSchema, ubicacionEmpresaSchema } from "./contratos-admin";
+import { limitesEfectivosSchema } from "./limites-motoristas";
 
 export const empresaDetalleSchema = empresaSchema.extend({
+  limites_motoristas: limitesEfectivosSchema.optional(),
   razon_social: z.string().nullable(),
   identificacion_fiscal: z.string().nullable(),
   telefono: z.string().nullable(),

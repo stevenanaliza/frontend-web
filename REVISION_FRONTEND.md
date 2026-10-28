@@ -18,7 +18,7 @@ Los reportes existentes se conservaron y los módulos antes previstos ahora tien
 ## Correcciones de la revisión
 
 - `solicitud.ver` se reconoce como permiso administrativo según la sección 19. `ver_propias` y `ver_asignadas` no permiten entrar por sí solos. El inicio lleva al primer módulo autorizado.
-- Rutas y navegación exigen los mismos permisos. Ver motoristas no habilita editar límites; ver usuarios no habilita editar cuentas.
+- Rutas y navegación exigen los mismos permisos. Ver motoristas o administrarlos no habilita editar la configuración compartida; ver usuarios no habilita editar cuentas.
 - Los filtros y páginas de agrupaciones, solicitudes y evidencias no se envían como parámetros desconocidos a otras API. El grupo sin sucursal utiliza `sin_sucursal=true` y no envía `sucursal_id`.
 - Los errores por campo mantienen los valores del formulario y reciben foco; no se repiten automáticamente PATCH/POST.
 - Las imágenes privadas se solicitan con Bearer, sin caché, validando JPEG/PNG/WebP y liberando los object URLs. No se usa una URL privada del servidor como imagen pública.
@@ -61,4 +61,12 @@ El usuario confirmó una sesión abierta. Computer Use se detuvo al no poder ide
 - Empresas con datos de contacto y accesos a sus directorios; ubicaciones con alta manual, país de la empresa, coordenadas y aprobación; flota con directorio y alta independiente de motocicletas.
 - Las credenciales, el contrato JWT y los permisos de Django permanecen vigentes. Consultar catálogos operativos no concede acceso administrativo. Los botones de reintento dentro de formularios no disparan su envío.
 - Capturas verificadas en escritorio, tablet y teléfono. Compilación, 36 pruebas unitarias y 41 escenarios completos de navegador aprobados; la revisión final de formularios incluye además la regresión del reintento.
-- No se modificaron backend ni móvil. La API no ofrece alta/edición de empresas, edición de sucursales o vehículos existentes, ni cambio de usuario o motocicleta de un motorista creado.
+- No se modificaron backend ni móvil. La API no ofrece alta/edición de datos generales de empresa, edición de sucursales o vehículos existentes, ni cambio de usuario o motocicleta de un motorista creado. La actualización 0.41.0 añade un subrecurso de límites compartidos.
+
+## Adaptación local al contrato 0.41.0
+
+Se sustituyó la edición individual por una pantalla de límites compartidos enlazada desde Administración, Empresas y Motoristas. Corporate utiliza configuración por empresa; Network usa la general tras comprobar el alcance devuelto. La autorización distingue empresa completa, sucursal y permiso global de configuración. Cada motorista conserva su propio cupo calculado.
+
+Se actualizaron los contratos y las pruebas para exigir las nuevas rutas, impedir el PATCH individual, conservar errores 400/403/409, refrescar lecturas y representar un endpoint todavía no disponible. No se usa Git ni se publica esta adaptación. El backend y la migración externa se mantienen fuera del alcance de este trabajo.
+
+Validación final: 40 pruebas unitarias, 50 escenarios de navegador, compilación y formato aprobados. Se inspeccionaron las capturas de límites compartidos en escritorio y teléfono; las pruebas también comprueban tablet y ausencia de desbordamiento del documento. Todas las escrituras se ejecutaron contra respuestas aisladas de prueba.

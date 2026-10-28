@@ -177,6 +177,8 @@ function CargaActual({ resumen }: { resumen: Resumen }) {
     >
       <p className="panel-nota">
         Situación actual del motorista, independiente de la fecha seleccionada.
+        Los límites son compartidos por empresa o red y el cupo es individual
+        para cada motorista.
       </p>
       <div className="carga-estado">
         <Package size={25} aria-hidden="true" />

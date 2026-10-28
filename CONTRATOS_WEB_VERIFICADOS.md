@@ -32,8 +32,20 @@ Se verificaron por lectura los endpoints de organizaciones, ubicaciones y flota,
 
 - Las solicitudes nuevas usan `opciones-creacion/`, `tipos-servicio/` y `POST /api/v1/solicitudes/`. `cantidad_tubos` es obligatoria e independiente de `articulos[].cantidad`. El origen y destino enviados son IDs de ubicación, mientras que `sucursal_id` procede del origen autorizado. Los especiales solo se ofrecen cuando Django los incluye y autoriza; no se envía un destino registrado para ellos.
 - La ubicación manual usa `origen: REGISTRADA_USUARIO`, país de la empresa cuando se puede consultar, tipo del catálogo y coordenadas con seis decimales. Su alta requiere `ubicacion.crear`. La aprobación requiere `ubicacion.aprobar` y llama a la ruta con `ubicacion.id`, no con el ID de la relación. El estado devuelto por Django determina la aprobación efectiva.
-- Las empresas exponen GET de lista y detalle; las sucursales admiten GET y POST; los vehículos admiten GET y POST. No existen POST/PATCH de empresas ni PATCH de sucursales o vehículos en las vistas actuales. El permiso `empresa.administrar` por sí solo no añade esas operaciones HTTP.
+- Las empresas exponen GET de lista y detalle; las sucursales admiten GET y POST; los vehículos admiten GET y POST. No existen POST/PATCH de datos generales de empresa ni PATCH de sucursales o vehículos en las vistas actuales. El permiso `empresa.administrar` por sí solo no añade esas operaciones HTTP; 0.41.0 sí ofrece el subrecurso de límites de motoristas.
 - El registro de motocicletas es accesible desde su módulo y desde el alta de motorista. La capacidad operativa sigue calculándose en Django; no se envía `capacidad_carga_kg`.
+
+## Límites compartidos · 0.41.0
+
+Se incorporó el contrato adjunto actualizado el 28 de octubre de 2026. El panel elimina el formulario y todas las escrituras de límites mediante `PATCH /api/v1/repartidores/{id}/`.
+
+- Corporate utiliza GET/PATCH de `organizaciones/empresas/{empresa_id}/limites-motoristas/`. Se valida el `empresa_id` devuelto y se requiere alcance completo de empresa o global para ofrecer edición, además de `empresa.administrar`. Django mantiene la autorización definitiva.
+- Un resultado `alcance: RED` redirige la consulta al subrecurso general `organizaciones/configuracion/limites-motoristas/`. Nunca se aplica PATCH de empresa para cambiar la red. La edición general exige `configuracion.administrar` y un rol con alcance GLOBAL; los administradores de clientes solo consultan.
+- Los schemas aceptan enteros positivos de tubos hasta 2147483647 y solicitudes entre 1 y 5, diferenciando EMPRESA/RED. El formulario admite motivo opcional hasta 1000 caracteres y envía ambos límites. Se muestra la respuesta validada, sin calcular ni redistribuir cupos en el cliente.
+- Se invalidan consultas activas relacionadas al guardar; los cupos individuales de listados y resúmenes continúan siendo los calculados por Django. Las vistas que se abren después hacen GET nuevos. El perfil JWT y las credenciales no cambian.
+- El nuevo atributo `limites_motoristas` de las empresas es opcional al leer directorios para conservar consulta con despliegues anteriores. No se sustituye por 20/5 si falta. El endpoint de configuración sí debe responder con el contrato completo; 404 muestra indisponibilidad explícita sin fallback individual.
+
+No se aplicaron migraciones, cambios de backend/móvil, modificaciones de entorno ni publicaciones. La migración externa `organizaciones.0003_limites_motoristas_compartidos` y el código 0.41.0 deben estar disponibles en el servicio para comprobar el flujo autenticado real.
 
 ## Publicación estática
 

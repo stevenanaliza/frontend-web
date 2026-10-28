@@ -2,7 +2,7 @@
 
 Repositorio `frontend-web`: panel en React, TypeScript y Vite que consume directamente el backend Django mediante JWT. La publicación contiene archivos estáticos; no requiere un servidor Node de sesiones ni cookies de autenticación del panel. Node y npm se utilizan para desarrollar, compilar y ejecutar las pruebas.
 
-El contrato oficial es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), especialmente 0.39.0 y 0.40.0. El proyecto Flutter y el backend Django permanecen sin modificaciones.
+El contrato oficial es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), actualizado a 0.41.0. El proyecto Flutter y el backend Django permanecen sin modificaciones.
 
 ## Iniciar el proyecto
 
@@ -40,21 +40,22 @@ Ver [deploy/README.md](./deploy/README.md) para CORS, configuración y comprobac
 
 ## Alcance implementado
 
-| Módulo            | Funciones                                                                                                         |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Acceso            | Correo/contraseña, recuperación al recargar, perfil, permisos, rotación JWT y cierre de sesión                    |
-| Resúmenes diarios | Fecha operativa, filtros, paginación remota, detalle del motorista y temperaturas                                 |
-| Solicitudes       | Creación con catálogos autorizados, modalidades, artículos y tubos; agrupaciones, filtros, detalle e historial    |
-| Operaciones       | Asignar/reasignar, corregir tubos con motivo y cancelar según estado y permisos                                   |
-| Evidencias        | Metadatos e imágenes privadas solicitadas con Bearer y object URLs temporales                                     |
-| Motoristas        | Directorio, carga actual, límite autorizado, alta de perfil y motocicleta                                         |
-| Usuarios          | Alta, detalle, edición, catálogo de roles delegables, asignación/revocación y contraseñas                         |
-| Sucursales        | Directorio y alta con ubicación aprobada de la empresa                                                            |
-| Administración    | Accesos directos a las altas y gestiones disponibles según los permisos de la cuenta                              |
-| Empresas          | Consulta de datos y contacto; accesos a sucursales, ubicaciones y flota de cada empresa                           |
-| Ubicaciones       | Directorio, registro manual con país de la empresa, coordenadas y aprobación del uso como origen o destino        |
-| Vehículos         | Directorio y alta independiente de motocicletas con estado inicial                                                |
-| Mi cuenta         | Datos, contraseña propia cuando el restablecimiento administrativo está autorizado y cierre de todas las sesiones |
+| Módulo                | Funciones                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Acceso                | Correo/contraseña, recuperación al recargar, perfil, permisos, rotación JWT y cierre de sesión                    |
+| Resúmenes diarios     | Fecha operativa, filtros, paginación remota, detalle del motorista y temperaturas                                 |
+| Solicitudes           | Creación con catálogos autorizados, modalidades, artículos y tubos; agrupaciones, filtros, detalle e historial    |
+| Operaciones           | Asignar/reasignar, corregir tubos con motivo y cancelar según estado y permisos                                   |
+| Evidencias            | Metadatos e imágenes privadas solicitadas con Bearer y object URLs temporales                                     |
+| Motoristas            | Directorio, carga actual y cupo individual efectivo; alta de perfil y motocicleta                                 |
+| Límites de motoristas | Configuración compartida por empresa en Corporate o general de Network, según alcance y permisos                  |
+| Usuarios              | Alta, detalle, edición, catálogo de roles delegables, asignación/revocación y contraseñas                         |
+| Sucursales            | Directorio y alta con ubicación aprobada de la empresa                                                            |
+| Administración        | Accesos directos a las altas y gestiones disponibles según los permisos de la cuenta                              |
+| Empresas              | Consulta de datos y contacto; accesos a sucursales, ubicaciones y flota de cada empresa                           |
+| Ubicaciones           | Directorio, registro manual con país de la empresa, coordenadas y aprobación del uso como origen o destino        |
+| Vehículos             | Directorio y alta independiente de motocicletas con estado inicial                                                |
+| Mi cuenta             | Datos, contraseña propia cuando el restablecimiento administrativo está autorizado y cierre de todas las sesiones |
 
 Las rutas y acciones se protegen por permisos. Los solicitantes y motoristas sin permisos administrativos no pueden entrar. Los reportes requieren conjuntamente `repartidor.ver`, `reporte.ver`, `solicitud.ver`, `jornada.ver` y `evidencia.ver`. Django decide siempre la autorización y el alcance definitivos.
 
@@ -64,7 +65,13 @@ Las respuestas se validan con Zod. Los errores por campo conservan los valores d
 
 La creación de solicitudes consulta `opciones-creacion/` por empresa, modalidad y origen. Solo permite elegir destinos devueltos por Django; al cambiar modalidad u origen descarta el destino anterior. Los envíos especiales dependen del catálogo autorizado y usan una descripción con `destino_id: null`. La cantidad de tubos es independiente de las cantidades de los artículos. El servidor crea el traslado y decide su asignación automática; el panel muestra el resultado real.
 
-El contrato vigente no expone altas o edición de empresas, edición de sucursales ni edición de vehículos existentes. El panel ofrece la consulta de esos registros y las altas disponibles. Tampoco permite cambiar el usuario o la motocicleta de un motorista ya creado: el endpoint administrativo actual solo configura su límite de tubos.
+El contrato vigente no expone altas o edición de los datos generales de empresas, edición de sucursales ni edición de vehículos existentes. El panel ofrece la consulta de esos registros y las altas disponibles. Tampoco permite cambiar el usuario o la motocicleta de un motorista ya creado. Desde 0.41.0 se retiró la configuración individual de límites del motorista.
+
+En `/limites-motoristas`, Corporate consulta y modifica la configuración de una empresa mediante `organizaciones/empresas/{id}/limites-motoristas/`. La escritura requiere `empresa.administrar` y alcance de empresa completo o global. Si Django devuelve `alcance: RED`, se utiliza exclusivamente `organizaciones/configuracion/limites-motoristas/`; solo `configuracion.administrar` con alcance global habilita su edición. Un administrador de empresa cliente Network la consulta sin modificarla.
+
+Los límites se aplican individualmente a cada motorista: no forman un fondo compartido entre conductores. El servidor valida reducciones contra la carga comprometida. Los formularios conservan campos y valores ante 400/403/409 y nunca repiten el PATCH automáticamente. Tras guardar se muestran los valores devueltos y se refrescan las consultas montadas de empresas, motoristas, disponibles y resúmenes; al volver a una pantalla se consulta de nuevo, sin caché persistida de cupos.
+
+La migración y el despliegue externos de 0.41.0 están pendientes según el contrato recibido. Un 404 del nuevo endpoint se presenta como configuración no disponible, sin volver a la edición individual ni inventar límites. Esta adaptación queda local y no realiza operaciones de Git ni publicación.
 
 ## Sesión JWT y contraseñas
 
@@ -91,7 +98,7 @@ npm run format:check
 
 Las pruebas cubren contratos, permisos, errores, paginación y operaciones administrativas. Los escenarios de sesión sirven una compilación estática y acceden a una API HTTP de prueba en otro origen: comprueban CORS, Bearer, recuperación, renovación, salida y cambio de contraseña sin cookies ni servidor de sesiones. Las pruebas de escritura no modifican bases operativas.
 
-La ampliación administrativa pasó **36 pruebas unitarias** y una ejecución completa de **41 escenarios de navegador**. La revisión final de formularios vuelve a comprobar los flujos administrativos e incorpora un caso adicional: reintentar una consulta no debe enviar el formulario. También se verifican compilación, formato y capturas a 1440, 768 y 375 píxeles.
+La adaptación 0.41.0 pasó **40 pruebas unitarias y 50 escenarios de navegador**, además de compilación y formato. Se comprueban permisos de empresa/sucursal/red, configuración compartida, rechazo del PATCH individual, actualización de lecturas, errores por campo y capturas a 1440, 768 y 375 píxeles.
 
 Las capturas en `artifacts/` contienen datos de prueba. El panel está publicado en Vercel y se comprobó que Django responde a salud, perfil sin sesión y login vacío con CORS correcto. El acceso administrativo y las escrituras con datos reales requieren una cuenta autorizada; las pruebas de formularios utilizan una API aislada. Ver [diagnóstico de conexión](./deploy/README.md).
 

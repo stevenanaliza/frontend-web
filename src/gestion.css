@@ -4,6 +4,24 @@
   padding: 0;
   min-width: 0;
 }
+.limites-contenido {
+  padding: 20px 22px;
+}
+.limites-contenido .contexto-form {
+  margin: 0 0 12px;
+}
+.limites-contenido .datos-detalle {
+  padding: 0 0 12px;
+}
+.limites-contenido .ayuda-form {
+  margin: 12px 0 0;
+}
+.limites-contenido > .boton {
+  margin-top: 18px;
+}
+.limites-contenido > .aviso {
+  margin: 18px 0 0;
+}
 .acciones-admin {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
