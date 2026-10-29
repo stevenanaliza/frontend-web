@@ -2,7 +2,7 @@
 
 Repositorio `frontend-web`: panel en React, TypeScript y Vite que consume directamente el backend Django mediante JWT. La publicación contiene archivos estáticos; no requiere un servidor Node de sesiones ni cookies de autenticación del panel. Node y npm se utilizan para desarrollar, compilar y ejecutar las pruebas.
 
-El contrato oficial es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), actualizado a 0.41.0. El proyecto Flutter y el backend Django permanecen sin modificaciones.
+El contrato oficial es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), actualizado a 0.42.0. El proyecto Flutter y el backend Django permanecen sin modificaciones.
 
 ## Iniciar el proyecto
 
@@ -88,6 +88,16 @@ El cierre actual utiliza `cerrar-sesion/` y elimina las credenciales tras el 204
 El contrato ofrece restablecimiento administrativo de contraseña, que revoca las sesiones. No ofrece recuperación pública por correo ni cambio personal con contraseña anterior; no se inventan esos endpoints. Ver [contratos comprobados](./CONTRATOS_WEB_VERIFICADOS.md).
 
 ## Monitorear · Google Maps
+
+### Almuerzo administrativo · 0.42.0
+
+Motoristas incorpora el filtro remoto `en_almuerzo=true/false`, combinado con los filtros y la paginación existentes. El directorio, el listado de Monitorear y la ficha seleccionada muestran el indicador y `almuerzo_iniciado_en`. Monitorear filtra los datos autorizados que ya ha consultado y diferencia «Sin información» de «Fuera de almuerzo». La hora de inicio conserva la fecha y el desplazamiento UTC del servidor; no se deduce desde el reloj del navegador ni desde `estado_operativo=PAUSED`.
+
+Los campos nuevos son opcionales mientras se actualiza el backend externo. Su ausencia se muestra como «Sin información de almuerzo»; si un servidor anterior ignora el filtro remoto y devuelve datos sin ese campo, se advierte que el filtro no está confirmado. No se asignan false, null o una hora ficticia.
+
+Esta web administrativa consulta el almuerzo. Iniciarlo y finalizarlo corresponde exclusivamente al motorista en su aplicación: no se agregan POST de almuerzo, cambios de estado para simular el regreso ni creación de jornadas desde el panel. El corte de las 22:00 y su zona operativa los establece Django; los errores del servidor conservan el tratamiento existente. El contrato 0.42.0 informa que la publicación, la migración externa y el mantenimiento programado en Render siguen pendientes del equipo del backend.
+
+### Configuración del mapa
 
 La ruta `/monitorear` muestra un punto por motorista con seguimiento operativo disponible y permite abrir su carga, vehículo, solicitudes y artículos. Exige `repartidor.ver`, `solicitud.ver` y `solicitud.ver_seguimiento`, con el alcance autorizado por Django.
 

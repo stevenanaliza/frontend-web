@@ -12,6 +12,7 @@ import {
 import { Etiqueta, Panel, estados, numero } from "./componentes";
 import { puedeVerReportes } from "./permisos";
 import { NuevoMotorista } from "./Altas";
+import { EstadoAlmuerzo } from "./EstadoAlmuerzo";
 
 export function Motoristas() {
   const { perfil } = useAuth();
@@ -24,6 +25,7 @@ export function Motoristas() {
     activo: params.get("activo") ?? "",
     estado_operativo: params.get("estado_operativo") ?? "",
     capacidad: params.get("capacidad") ?? "",
+    en_almuerzo: params.get("en_almuerzo") ?? "",
   });
   return (
     <>
@@ -64,6 +66,18 @@ export function Motoristas() {
         />
       )}
       <Filtros empresa error={listado.error}>
+        <label htmlFor="en_almuerzo">
+          Almuerzo
+          <select
+            id="en_almuerzo"
+            name="en_almuerzo"
+            defaultValue={params.get("en_almuerzo") ?? ""}
+          >
+            <option value="">Todos</option>
+            <option value="true">En almuerzo</option>
+            <option value="false">Fuera de almuerzo</option>
+          </select>
+        </label>
         <label htmlFor="activo">
           Perfil
           <select
@@ -114,83 +128,96 @@ export function Motoristas() {
           tituloVacio="No hay motoristas para estos filtros"
         >
           {(items) => (
-            <div
-              className="tabla-scroll"
-              role="region"
-              aria-label="Directorio de motoristas"
-              tabIndex={0}
-            >
-              <table>
-                <thead>
-                  <tr>
-                    <th>Motorista</th>
-                    <th>Vehículo</th>
-                    <th>Estado</th>
-                    <th>Carga actual</th>
-                    <th>Cupo disponible</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((m) => (
-                    <tr key={m.id}>
-                      <td>
-                        <strong>
-                          {m.usuario.nombres} {m.usuario.apellidos}
-                        </strong>
-                        <small>{m.usuario.correo}</small>
-                        <small>
-                          {m.activo ? "Perfil activo" : "Perfil inactivo"}
-                        </small>
-                      </td>
-                      <td>{m.vehiculo?.placa ?? "Sin vehículo"}</td>
-                      <td>
-                        <Etiqueta>
-                          {estados[m.estado_operativo] ?? m.estado_operativo}
-                        </Etiqueta>
-                        <small>{estados[m.capacidad] ?? m.capacidad}</small>
-                      </td>
-                      <td>
-                        <strong>
-                          {numero(m.tubos_comprometidos)} /{" "}
-                          {numero(m.limite_tubos)} tubos
-                        </strong>
-                        <small>
-                          {m.solicitudes_activas} / {m.limite_solicitudes}{" "}
-                          solicitudes activas
-                        </small>
-                        {m.solicitudes_sin_cantidad_tubos > 0 && (
-                          <small className="advertencia-texto">
-                            Carga parcial: {m.solicitudes_sin_cantidad_tubos}{" "}
-                            sin cantidad
-                          </small>
-                        )}
-                      </td>
-                      <td>
-                        {numero(m.tubos_disponibles)} tubos
-                        <small>
-                          {m.puede_recibir_solicitudes
-                            ? "Puede recibir solicitudes"
-                            : "No puede recibir solicitudes"}
-                        </small>
-                      </td>
-                      <td>
-                        <div className="acciones-celda">
-                          {perfil && puedeVerReportes(perfil) && (
-                            <Link
-                              className="boton texto"
-                              to={`/motoristas/${m.id}`}
-                            >
-                              Ver resumen
-                            </Link>
-                          )}
-                        </div>
-                      </td>
+            <>
+              {params.get("en_almuerzo") &&
+                items.some((m) => m.en_almuerzo === undefined) && (
+                  <p className="aviso" role="status">
+                    El servidor todavía no informa el estado de almuerzo. No se
+                    puede confirmar que haya aplicado este filtro.
+                  </p>
+                )}
+              <div
+                className="tabla-scroll"
+                role="region"
+                aria-label="Directorio de motoristas"
+                tabIndex={0}
+              >
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Motorista</th>
+                      <th>Vehículo</th>
+                      <th>Estado</th>
+                      <th>Almuerzo</th>
+                      <th>Carga actual</th>
+                      <th>Cupo disponible</th>
+                      <th>Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {items.map((m) => (
+                      <tr key={m.id}>
+                        <td>
+                          <strong>
+                            {m.usuario.nombres} {m.usuario.apellidos}
+                          </strong>
+                          <small>{m.usuario.correo}</small>
+                          <small>
+                            {m.activo ? "Perfil activo" : "Perfil inactivo"}
+                          </small>
+                        </td>
+                        <td>{m.vehiculo?.placa ?? "Sin vehículo"}</td>
+                        <td>
+                          <Etiqueta>
+                            {estados[m.estado_operativo] ?? m.estado_operativo}
+                          </Etiqueta>
+                          <small>{estados[m.capacidad] ?? m.capacidad}</small>
+                        </td>
+                        <td>
+                          <EstadoAlmuerzo motorista={m} />
+                        </td>
+                        <td>
+                          <strong>
+                            {numero(m.tubos_comprometidos)} /{" "}
+                            {numero(m.limite_tubos)} tubos
+                          </strong>
+                          <small>
+                            {m.solicitudes_activas} / {m.limite_solicitudes}{" "}
+                            solicitudes activas
+                          </small>
+                          {m.solicitudes_sin_cantidad_tubos > 0 && (
+                            <small className="advertencia-texto">
+                              Carga parcial: {m.solicitudes_sin_cantidad_tubos}{" "}
+                              sin cantidad
+                            </small>
+                          )}
+                        </td>
+                        <td>
+                          {numero(m.tubos_disponibles)} tubos
+                          <small>
+                            {m.puede_recibir_solicitudes
+                              ? "Puede recibir solicitudes"
+                              : "No puede recibir solicitudes"}
+                          </small>
+                        </td>
+                        <td>
+                          <div className="acciones-celda">
+                            {perfil && puedeVerReportes(perfil) && (
+                              <Link
+                                className="boton texto"
+                                to={`/motoristas/${m.id}`}
+                              >
+                                Ver resumen
+                              </Link>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </TablaRemota>
       </Panel>

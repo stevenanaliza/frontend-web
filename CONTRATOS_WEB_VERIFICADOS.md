@@ -45,7 +45,17 @@ Se incorporó el contrato adjunto actualizado el 28 de octubre de 2026. El panel
 - Se invalidan consultas activas relacionadas al guardar; los cupos individuales de listados y resúmenes continúan siendo los calculados por Django. Las vistas que se abren después hacen GET nuevos. El perfil JWT y las credenciales no cambian.
 - El nuevo atributo `limites_motoristas` de las empresas es opcional al leer directorios para conservar consulta con despliegues anteriores. No se sustituye por 20/5 si falta. El endpoint de configuración sí debe responder con el contrato completo; 404 muestra indisponibilidad explícita sin fallback individual.
 
-No se aplicaron migraciones, cambios de backend/móvil, modificaciones de entorno ni publicaciones. La migración externa `organizaciones.0003_limites_motoristas_compartidos` y el código 0.41.0 deben estar disponibles en el servicio para comprobar el flujo autenticado real.
+En esta adaptación del frontend no se aplicaron migraciones, cambios de backend/móvil, modificaciones de entorno ni publicaciones. La entrega posterior del contrato 0.42.0 confirma que el equipo del backend ya aplicó `organizaciones.0003_limites_motoristas_compartidos` externamente y publicó 0.41.0; no se repite esa operación desde esta web.
+
+## Almuerzo administrativo · 0.42.0 · 2026-10-29
+
+Se incorporó el contrato adjunto completo. `GET /api/v1/repartidores/?en_almuerzo=true/false` mantiene `repartidor.ver`, los alcances existentes, el filtro de empresa y la paginación en español. El directorio envía ese parámetro; Monitorear filtra los registros autorizados ya consultados.
+
+Los schemas conservan `en_almuerzo` y `almuerzo_iniciado_en` como booleano y fecha ISO 8601 nullable, respectivamente. Ambos son opcionales para poder consultar despliegues anteriores a 0.42.0: su ausencia significa información no disponible, sin sustituirla por false/null. Un estado `PAUSED` no prueba que exista un almuerzo. La UI utiliza el indicador explícito y conserva el offset horario recibido.
+
+El panel no llama a `jornadas/{id}/almuerzo/iniciar/` o `finalizar/`: están reservados al propietario de la jornada. Tampoco simula regreso mediante PATCH operativo ni crea jornadas adicionales. Las reglas de corte, disponibilidad y asignación corresponden al servidor; no se ejecutan cierres desde el reloj de la web. No se cambian permisos ni roles.
+
+El contrato informa que 0.42.0 requiere publicación, migración externa `jornadas.0004_horario_diario_almuerzos` y mantenimiento en Render, todavía pendientes. Estas tareas permanecen fuera de esta adaptación del frontend.
 
 ## Publicación estática
 

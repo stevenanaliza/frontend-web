@@ -26,6 +26,8 @@ import {
 import { useMonitoreo } from "./useMonitoreo";
 import { estadoGps, type MotoristaMonitor } from "./monitoreo";
 import "./monitoreo.css";
+import { EstadoAlmuerzo } from "./EstadoAlmuerzo";
+import { coincideAlmuerzo, type FiltroAlmuerzo } from "./almuerzos";
 
 const MapaMotoristas = lazy(() => import("./MapaMotoristas"));
 const hora = (valor: string | number) =>
@@ -91,6 +93,9 @@ function FichaMotorista({
           </Etiqueta>
           <Etiqueta>{estados[m.capacidad] ?? m.capacidad}</Etiqueta>
           {!m.activo && <Etiqueta tono="ambar">Perfil inactivo</Etiqueta>}
+        </div>
+        <div className="monitor-almuerzo">
+          <EstadoAlmuerzo motorista={m} />
         </div>
         <p className="ayuda-form">
           {registro.errorGps
@@ -231,6 +236,7 @@ export default function Monitorear() {
   const consulta = useMonitoreo();
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [buscar, setBuscar] = useState("");
+  const [almuerzo, setAlmuerzo] = useState<FiltroAlmuerzo>("");
   const [encuadre, setEncuadre] = useState(0);
   const [ahora, setAhora] = useState(Date.now());
   const ficha = useRef<HTMLDivElement>(null);
@@ -240,16 +246,18 @@ export default function Monitorear() {
     return () => clearInterval(timer);
   }, []);
   const registros = consulta.datos ?? [];
-  const visibles = registros.filter(({ motorista: m }) =>
-    `${m.usuario.nombres} ${m.usuario.apellidos} ${m.vehiculo?.placa ?? ""}`
-      .toLocaleLowerCase("es")
-      .includes(buscar.trim().toLocaleLowerCase("es")),
+  const visibles = registros.filter(
+    ({ motorista: m }) =>
+      coincideAlmuerzo(m, almuerzo) &&
+      `${m.usuario.nombres} ${m.usuario.apellidos} ${m.vehiculo?.placa ?? ""}`
+        .toLocaleLowerCase("es")
+        .includes(buscar.trim().toLocaleLowerCase("es")),
   );
   const ubicados = visibles.filter(
     (r) =>
       r.punto && estadoGps(r.punto, ahora) !== "Fecha de GPS por verificar",
   );
-  const actual = registros.find((r) => r.motorista.id === seleccionado);
+  const actual = visibles.find((r) => r.motorista.id === seleccionado);
   function seleccionar(id: string) {
     setSeleccionado(id);
     requestAnimationFrame(() => {
@@ -326,6 +334,24 @@ export default function Monitorear() {
                 onChange={(e) => setBuscar(e.target.value)}
                 placeholder="Nombre, apellido o placa"
               />
+              <label
+                className="monitor-filtro-almuerzo"
+                htmlFor="almuerzo-monitor"
+              >
+                Almuerzo
+                <select
+                  id="almuerzo-monitor"
+                  value={almuerzo}
+                  onChange={(e) =>
+                    setAlmuerzo(e.target.value as FiltroAlmuerzo)
+                  }
+                >
+                  <option value="">Todos</option>
+                  <option value="true">En almuerzo</option>
+                  <option value="false">Fuera de almuerzo</option>
+                  <option value="sin_dato">Sin información</option>
+                </select>
+              </label>
               <p>
                 {numero(visibles.length)} motoristas · {numero(ubicados.length)}{" "}
                 con ubicación · {numero(visibles.length - ubicados.length)} sin
@@ -452,6 +478,10 @@ export default function Monitorear() {
                                     ? ` · ${hora(r.punto.registrada_en)}`
                                     : ""}
                                 </small>
+                                <EstadoAlmuerzo
+                                  motorista={r.motorista}
+                                  compacto
+                                />
                               </span>
                             </button>
                           </li>

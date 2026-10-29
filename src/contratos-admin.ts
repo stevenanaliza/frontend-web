@@ -98,6 +98,13 @@ export const motoristaSchema = resumenSchema.shape.carga_actual.extend({
     })
     .nullable(),
   activo: z.boolean(),
+  // Ausentes en despliegues anteriores a 0.42.0; no equivalen a false/null.
+  en_almuerzo: z.boolean().optional(),
+  almuerzo_iniciado_en: z
+    .string()
+    .datetime({ offset: true })
+    .nullable()
+    .optional(),
 });
 export type Motorista = z.infer<typeof motoristaSchema>;
 export const grupoSucursalSchema = z.object({

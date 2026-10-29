@@ -96,3 +96,15 @@ La clave web se configura en `.env.local` y debe configurarse también en el ent
 Validación: 53 pruebas unitarias y 62 escenarios de navegador de funcionalidad y regresión aprobados, además de compilación y formato. Las pruebas de mapas ejecutan el SDK React con un servicio externo simulado, verificando selección del punto, ficha, errores, retirada de ubicaciones, permisos y adaptación a 320, 375, 820, 1440 y 844 píxeles en horizontal. Capturas identificadas como simulación en `artifacts/monitoreo/`.
 
 El usuario probará el mapa real en Vercel y mantiene la clave restringida a ese sitio; no se hizo una llamada real al mapa desde el origen local ni se comprobó una sesión administrativa real contra la API operativa. Cambios locales, sin publicación, Git, backend ni móvil.
+
+## Almuerzo administrativo · contrato 0.42.0 · 2026-10-29
+
+Se incorporó la entrega completa del contrato adjunto. El directorio de Motoristas envía `en_almuerzo=true/false` junto con los filtros existentes, conserva la empresa y reinicia la página al aplicar un filtro. Muestra una columna con el indicador explícito y la hora `almuerzo_iniciado_en`. Monitorear permite filtrar los registros autorizados ya cargados y representa el mismo indicador en listado y ficha. Una ficha excluida por el filtro deja de mostrarse.
+
+`PAUSED` sigue siendo una pausa genérica: no se deduce almuerzo desde ese estado. Se validan los campos nuevos como booleano y fecha ISO 8601 nullable, manteniéndolos opcionales durante la transición del backend. Su ausencia muestra «Sin información de almuerzo», excluida del filtro «Fuera de almuerzo». Si un servidor anterior devuelve campos ausentes al solicitar el filtro remoto, se indica que no se pudo confirmar su aplicación. La hora mostrada conserva fecha y offset del servidor.
+
+La adaptación es de consulta administrativa: no añade controles ni POST para iniciar o finalizar almuerzos ajenos, ni PATCH de regreso, ni creación de jornadas. Los cierres de las 22:00 y sus guardas corresponden a Django; no se ejecutan reglas de cierre con el reloj del navegador. El contrato informa que el despliegue, la migración externa 0004 y el mantenimiento de 0.42.0 siguen pendientes en Render. Estas tareas permanecen fuera del frontend.
+
+Validación: 59 pruebas unitarias y 18 escenarios de navegador de almuerzos y regresión de administración/monitoreo aprobados; compilación y formato correctos. Se verifican filtros, empresa/paginación, pausa genérica, respuesta anterior al despliegue, actualización del estado y ausencia de escrituras de almuerzo. Capturas de escritorio, tableta y móvil inspeccionadas en `artifacts/almuerzos/`. API y mapas simulados, sin consumos de Google ni cambios en datos operativos.
+
+Cambios locales, sin Git, publicación ni modificaciones de backend, móvil, entornos o credenciales.

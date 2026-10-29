@@ -36,6 +36,15 @@
   color: var(--muted);
   margin: 0 0 0 auto;
 }
+.monitor-busqueda .monitor-filtro-almuerzo {
+  flex: 0 1 210px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.monitor-almuerzo {
+  margin-top: 14px;
+}
 .monitor-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
@@ -274,6 +283,9 @@
   }
 }
 @media (max-width: 600px) {
+  .monitor-busqueda .monitor-filtro-almuerzo {
+    flex-basis: 100%;
+  }
   .monitor-busqueda {
     align-items: stretch;
   }

@@ -18,14 +18,21 @@ El código del backend sigue siendo la fuente técnica definitiva. Este archivo
 es la referencia de integración para el frontend y solo presenta como
 **disponibles** las funciones que ya están implementadas.
 
-Última actualización: **2026-10-28**.
+Última actualización: **2026-10-29**.
+
+Actualización **0.42.0**: Corporate y Network cierran jornadas y servicios
+incompletos a las22:00 de su zona operativa. Una sola jornada por motorista y
+día, aunque se cierre antes. Almuerzo manual sin trabajos pendientes, regreso
+sobre la misma jornada y filtro administrativo. Nuevos endpoints y JSON en la
+sección0.42.0 al final. Migración aplicada en ambas bases locales; publicación,
+migración externa y programación del mantenimiento en Render pendientes.
 
 Actualización **0.41.0**: configuración de cupos compartida, aplicada al cupo
 individual de cada motorista. Corporate configura por empresa; Network usa una
 configuración general para todas sus empresas. Se retira PATCH de límites por
 motorista. Perfiles/listados/resúmenes conservan los campos calculados. Nuevos
 GET/PATCH y entrega exacta al frontend en la sección0.41.0 al final. Migración
-aplicada en ambas bases locales; publicación y migración externa pendientes.
+aplicada en ambas bases locales y en la base externa Corporate.
 
 Actualización **0.37.0**: ENTRE_SUCURSALES de Corporate permite distintas ciudades
 y municipios del mismo país/departamento y empresa, sin límite adicional de km.
@@ -6447,6 +6454,14 @@ local y arranque WSGI/salud200 sin SQL ni bucles HTTPS. Suite737 casos:715 aprob
 
 ## Límites compartidos de motoristas (0.41.0, 2026-10-28)
 
+Estado de integración actualizado2026-10-28: **migración externa aplicada con
+autorización del usuario**. Código0.41 ya publicado y base vitago_corporativo
+preparada. Columnas/tablas presentes y pendientes0; conteos de35tablas operativas
+sin cambios. APIClient contra esa base en READ ONLY: perfil, empresas, detalle,
+límites y motoristas200. Render público salud/preflight200 con CORS Vercel.
+No se hizo login real ni se crearon sesiones/tokens. Reintentar el flujo web
+con la misma URL y origen; no hubo cambios del frontend ni otro push de código.
+
 ### Regla y alcance
 
 La configuración se hace una sola vez; cada motorista tiene su propio cupo.
@@ -6582,9 +6597,10 @@ sin convertirlos en errores de conexión.
 Migración organizaciones.0003_limites_motoristas_compartidos: dos columnas en
 Empresa y tablas limites_motoristas_red/historial_limites_motoristas. Inicializa
 la configuración20/5, conserva columnas y datos anteriores. Aplicada en ambas
-bases locales con conteos operativos conservados. La base externa vitago_corporativo
-todavía requiere esta migración antes de desplegar el código0.41.0; el prechequeo
-confirma un único paso pendiente y permisos de esquema. No se aplicó DDL externo.
+bases locales con conteos operativos conservados. Posteriormente se aplicó con
+autorización también en vitago_corporativo externa:35conteos intactos, esquema
+verificado, configuración red20/5 y0migraciones pendientes. Ya está preparada
+para el código0.41.0 desplegado.
 
 Verificación:18 regresiones funcionales nuevas y2 pruebas PostgreSQL específicas;
 suite765 casos,741 aprobados/24 omitidos por PostgreSQL,semilla4100,Google bloqueado.
@@ -6592,3 +6608,214 @@ check y dry-run correctos. Además, nueve GET200 en PostgreSQL local con transac
 READ ONLY y una comprobación real de lectores/escritor en ambos modos mediante
 SELECT/bloqueos/rollback, conservando valores. Sin cambios de frontend, .env, IP,
 servidores o tareas. No se realizó commit/push ni publicación de secretos.
+
+## 0.42.0 — Jornada diaria hasta las 22:00 y almuerzo (2026-10-29)
+
+### Reglas vigentes para Corporate y Network
+
+- La fecha y hora las establece el servidor. Corporate usa la zona del país
+  de la empresa; Network usa `TIME_ZONE`, configurado mediante
+  `ZONA_HORARIA_PREDETERMINADA`. Para Honduras: `America/Tegucigalpa`.
+- Se inicia como máximo una jornada por motorista y fecha operativa. Finalizar
+  temprano **no permite iniciar otra ese día**. Una jornada puede continuar
+  después del almuerzo sin crearse otra.
+- Desde las22:00 no se permite iniciar jornada, regresar del almuerzo, ponerse
+  disponible/en ruta, asignar servicios ni operar rutas vencidas. Crear una
+  solicitud Corporate después del corte devuelve400 con campo `solicitud`.
+  Se conserva la restricción anterior de creación de solicitudes Network.
+- A las22:00 el mantenimiento cierra servicios incompletos: `PICKUP_FAILED`
+  antes de recoger, `DELIVERY_FAILED` cuando ya se recogieron; `motivo_cierre`
+  vale `FIN_DIA`. Cierra asignaciones, tramos especiales, rutas y jornadas.
+  Preserva evidencias, GPS, solicitudes e historial y no inventa coordenadas.
+- Si el mantenimiento se retrasa o el teléfono está apagado, recupera días
+  pendientes y registra el corte efectivo de las22:00, además de la hora real
+  de ejecución en el evento. Los registros antiguos iniciados después de las
+  nuevas22:00 nunca se cierran antes de su propio inicio. No se recalculan
+  cierres históricos ya finalizados.
+- El backend bloquea operaciones vencidas aunque el mantenimiento todavía no
+  haya cerrado sus filas. Consultar por GET no ejecuta cierres. Al iniciar una
+  jornada se recuperan primero las operaciones vencidas propias, respetando
+  los bloqueos transaccionales.
+- El archivado diario de avisos conserva su corte independiente de las00:00.
+
+### Almuerzo del motorista
+
+Autenticación Bearer y permiso `repartidor.actualizar_estado`; únicamente el
+dueño de la jornada activa y vigente, con usuario/perfil/rol operativo válidos.
+El administrador consulta el estado; no inicia ni termina almuerzos ajenos.
+
+| Método | Ruta, relativa a `/api/v1/` | Cuerpo | Respuesta |
+|---|---|---|---|
+| POST | `jornadas/{jornada_id}/almuerzo/iniciar/` | `{}` | 200, jornada actualizada |
+| POST | `jornadas/{jornada_id}/almuerzo/finalizar/` | `{}` | 200, la misma jornada |
+
+Inicio: motorista `AVAILABLE`, sin solicitudes pendientes asignadas, sin
+ninguno de los seis estados activos, sin asignaciones activas ni movimiento
+especial activo. Un `PENDING` sin asignar en la cola general no lo bloquea.
+El servidor registra el inicio y cambia a `PAUSED`; la capacidad de tubos sigue
+siendo calculada. Los listados de disponibles y la asignación automática/manual
+lo excluyen. El bloqueo del motorista serializa la carrera entre asignar e
+iniciar almuerzo: solo se confirma la acción que siga siendo válida.
+
+Regreso: el motorista lo marca manualmente antes del corte. Se registra el fin
+con su usuario y motivo `REGRESO`, cambia a `AVAILABLE` y se programa el reintento
+de pendientes existente. No se inicia una jornada adicional ni se levanta el
+almuerzo por login, GPS, mapa o PATCH directo a `AVAILABLE`/`ON_ROUTE`.
+
+El cierre manual/automático de la jornada también finaliza un almuerzo abierto
+con motivo `CIERRE_JORNADA`. Cambiar a `OFFLINE`/`OUT_OF_SERVICE` mediante la
+operación autorizada lo cierra con `CAMBIO_ESTADO` y deja trazabilidad; no lo
+convierte en regreso. Se conservan todos los intervalos. No se impone un tiempo
+máximo ni se descuenta el almuerzo de `minutos_activos`, que conserva su cálculo
+anterior de tiempo transcurrido.
+
+Errores400 estables, ejemplos JSON exactos:
+
+```json
+{"almuerzo": "No puede iniciar almuerzo mientras tenga trabajos pendientes."}
+```
+
+```json
+{"jornada": "Solo puede iniciar una jornada por día, aunque ya la haya finalizado."}
+```
+
+```json
+{"estado_operativo": "Debe finalizar el almuerzo desde su jornada para volver a estar disponible."}
+```
+
+Sin permiso:403; jornada ajena/inexistente:404. Intentar repetir inicio o
+finalizar sin almuerzo activo devuelve400 con `almuerzo`. Las acciones de
+almuerzo rechazan parámetros adicionales, especialmente fechas del teléfono,
+con400 y el nombre de cada campo enviado. Mostrar el mensaje de validación.
+
+### Campos nuevos de jornada
+
+Todos los endpoints que devuelven `SerializadorJornada` conservan sus campos
+anteriores y añaden los siguientes. Este fragmento muestra solo las adiciones:
+
+```json
+{
+  "fecha_operativa": "2026-10-29",
+  "cierre_programado_en": "2026-10-29T22:00:00-06:00",
+  "puede_operar": false,
+  "en_almuerzo": true,
+  "almuerzos": [
+    {
+      "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "iniciada_en": "2026-10-29T12:00:00-06:00",
+      "finalizada_en": null,
+      "finalizada_por_id": null,
+      "motivo_cierre": ""
+    }
+  ]
+}
+```
+
+Después del regreso, el intervalo tiene `finalizada_en`, el UUID del motorista
+en `finalizada_por_id` y `motivo_cierre="REGRESO"`. `en_almuerzo=false` y
+`puede_operar=true` dentro del horario vigente. En un cierre automático, el
+actor es null. `puede_operar` indica jornada vigente fuera del almuerzo; los
+permisos, el estado y el flujo de cada servicio se validan por separado.
+Jornadas históricas finalizadas anteriores a esta versión pueden tener
+`fecha_operativa` y `cierre_programado_en` nulos y `almuerzos=[]`.
+
+`GET /jornadas/activa/` conserva `jornada` (objeto completo anterior o null) y
+añade estas claves superiores:
+
+```json
+{
+  "jornada": null,
+  "hora_servidor": "2026-10-29T08:00:00-06:00",
+  "fecha_operativa": "2026-10-29",
+  "zona_horaria_operativa": "America/Tegucigalpa",
+  "cierre_programado_en": "2026-10-29T22:00:00-06:00",
+  "jornada_iniciada_hoy": false,
+  "puede_iniciar_jornada": true,
+  "cierre_pendiente": false
+}
+```
+
+Si queda una jornada vencida pendiente de mantenimiento, se devuelve en
+`jornada`, con `puede_operar=false`, y `cierre_pendiente=true`. No tratarla como
+operativa. `puede_iniciar_jornada` tiene en cuenta fecha, horario, vehículo,
+estado y permiso; POST siempre vuelve a validar. Al cerrar hoy, esta bandera
+queda false hasta el siguiente día, aunque `jornada` sea null.
+
+### Consulta administrativa de almuerzos
+
+`GET /repartidores/?en_almuerzo=true` usa `repartidor.ver`, la paginación en
+español existente y los mismos alcances por empresa. Se combina con filtros
+anteriores como `empresa_id`. `en_almuerzo=false` filtra el resto. Cada objeto de
+listado, detalle o mi-perfil de motorista conserva sus campos y añade:
+
+```json
+{
+  "en_almuerzo": true,
+  "almuerzo_iniciado_en": "2026-10-29T12:00:00-06:00"
+}
+```
+
+Fuera del almuerzo vigente: false y null. El estado operativo durante almuerzo
+es `PAUSED`; una pausa genérica sin intervalo conserva `en_almuerzo=false`.
+Para el historial de inicio/fin se consulta el detalle autorizado de la jornada.
+No se necesita un permiso nuevo ni alterar el catálogo de roles.
+
+### Entrega exacta para frontend móvil y web
+
+1. Consultar jornada activa y respetar `puede_iniciar_jornada`, `puede_operar`,
+   `cierre_pendiente` y la hora del servidor.
+2. Mostrar «Iniciar almuerzo» sin trabajos pendientes y «Regresé del almuerzo»
+   cuando `en_almuerzo=true`. Enviar POST `{}` a las rutas anteriores.
+3. Tras cada acción, refrescar jornada, perfil, solicitudes y ruta. El regreso
+   puede provocar una asignación automática. No enviar `estado_operativo` para
+   simular el regreso ni crear otra jornada.
+4. En administración, añadir filtro/indicador «En almuerzo» y mostrar la hora
+   `almuerzo_iniciado_en`. Respetar las empresas visibles para el usuario.
+5. Desde las22:00 mostrar jornada terminada/no operativa; los servicios no
+   completados usan los estados fallidos existentes. Mantener sincronización
+   histórica de GPS pendiente anterior al corte mediante el contrato existente.
+
+### Migración, mantenimiento y estado real del despliegue
+
+`jornadas.0004_horario_diario_almuerzos` añade fecha/corte a jornadas y tabla
+`almuerzos_jornada`. Completa metadatos de las jornadas activas anteriores sin
+reabrir cierres ni borrar historia. Restricción única por motorista/fecha para
+las nuevas jornadas y único almuerzo abierto por jornada. Aplicada en ambas
+bases PostgreSQL locales, con los cinco conteos comprobados intactos:
+usuarios, jornadas, solicitudes, GPS y evidencias. No se aplicó en la base
+externa de Render ni se hizo commit/push.
+
+Para que el cierre persistido ocurra aunque nadie use la aplicación, el servidor
+debe ejecutar periódicamente (cada minuto) el comando idempotente:
+
+```bash
+# Despliegue Corporate, con sus propias variables y base de datos
+python manage.py cerrar_operaciones_vencidas --settings=config.settings.production --confirmar-corporativo
+
+# Despliegue Network, con sus propias variables y base de datos
+python manage.py cerrar_operaciones_vencidas --settings=config.settings.production --confirmar-network
+```
+
+Solo se acepta la bandera del modo correspondiente. El comando informa conteos
+y termina con error si quedaron fallos, para que puedan reintentarse. La misma
+tarea periódica recupera un cierre interrumpido o retrasado. Los guardas de
+horario no sustituyen esta ejecución en segundo plano.
+
+En Render están pendientes publicar este código, aplicar0004 con autorización
+y configurar el programador del lado del servidor. No se agregó un hilo de
+fondo a Gunicorn ni se creó un servicio de pago. La tarea Corporate local ya
+existente lee el mismo comando; no se registraron ni modificaron tareas de
+Windows. Network local dispone del comando con `--confirmar-network`.
+
+Verificación:798 casos ejecutados,771 aprobados y27 omitidos porque requieren
+PostgreSQL; semilla4201 y llamadas reales a Google bloqueadas. Incluye30 pruebas
+funcionales nuevas de horario/almuerzo y3 pruebas de concurrencia listas para
+PostgreSQL. Estas3 no se ejecutaron en SQLite; el usuario PostgreSQL local no
+tiene permiso de creación de una base temporal de pruebas. No se prueban carreras
+reales contra las tablas operativas para suplir esa limitación.
+
+`check`, `makemigrations --check --dry-run`, sintaxis y `git diff --check`
+correctos. Cinco GET200 sobre PostgreSQL Corporate local en una transacción
+READ ONLY: motoristas, filtro de almuerzo, jornadas, perfil propio y jornada
+activa. Sin login ni creación de tokens. Datos públicos nuevos presentes;
+no se consumió Google ni se alteró frontend, credenciales o conectividad.
