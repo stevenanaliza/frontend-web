@@ -8,12 +8,15 @@ import {
 import { motoristaSchema } from "./contratos-admin";
 import { Etiqueta, Panel, estados } from "./componentes";
 import { EstadoAlmuerzo } from "./EstadoAlmuerzo";
+import { useAuth } from "./auth";
+import { empresaDeConsulta } from "./permisos";
 
 export default function Almuerzos() {
+  const { perfil } = useAuth();
   const [params] = useSearchParams();
   const filtro = params.get("en_almuerzo") ?? "";
   const listado = usePaginaRemota("/api/v1/repartidores/", motoristaSchema, {
-    empresa_id: params.get("empresa_id") ?? "",
+    empresa_id: empresaDeConsulta(perfil, params.get("empresa_id")),
     en_almuerzo: filtro,
     activo: params.get("activo") ?? "",
   });

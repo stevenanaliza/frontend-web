@@ -6,11 +6,12 @@ import { Cabecera, TablaRemota, usePaginaRemota } from "./admin-comunes";
 import { EmpresaCampo, Exito } from "./formularios";
 import { Etiqueta, Panel } from "./componentes";
 import { NuevoVehiculo } from "./Altas";
+import { empresaDeConsulta } from "./permisos";
 
 export function Vehiculos() {
   const { perfil } = useAuth();
   const [params, setParams] = useSearchParams();
-  const empresa = params.get("empresa_id") ?? perfil?.empresa?.id ?? "";
+  const empresa = empresaDeConsulta(perfil, params.get("empresa_id"));
   const [nuevo, setNuevo] = useState(params.get("crear") === "1");
   const [mensaje, setMensaje] = useState("");
   const listado = usePaginaRemota("/api/v1/vehiculos/", vehiculoSchema, {

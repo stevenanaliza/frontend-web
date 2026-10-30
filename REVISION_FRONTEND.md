@@ -136,3 +136,15 @@ Las tarjetas muestran nombre, correo, indicador explícito, hora de inicio con o
 Capturas de la nueva sección en `artifacts/almuerzos/seccion-{320,820,1440}.png`. Cambios locales del frontend web, sin publicación, Git ni modificaciones del backend o móvil.
 
 Validación de esta sección: **8 escenarios de navegador aprobados**, incluidos accesos de menú/Administración, permisos, filtro remoto, regreso reportado, datos desconocidos y regresión de Motoristas/Monitorear. Capturas de 320, 820 y 1440 píxeles inspeccionadas sin desbordamiento. Compilación y formato correctos; API simulada, sin consultas operativas.
+
+## Empresa fija en Corporate y selector de Network · 2026-10-30
+
+Corporate oculta el campo «ID de empresa» y los controles para cambiar de organización. La empresa se toma del perfil autenticado en almuerzos, motoristas, resúmenes, solicitudes, sucursales, ubicaciones, flota y límites. La consulta de empresas muestra únicamente «Mi empresa». Un ID ajeno en la URL no reemplaza el contexto, y los filtros de Corporate retiran ese parámetro de las URLs que generan.
+
+El selector se conserva para `OPERADOR_RED`, rol administrativo de Network documentado en el contrato. Un alcance GLOBAL de Corporate no se confunde con ese rol. Monitorear añade empresa a directorio y solicitudes, excluye los registros de otras empresas y no consulta sus posiciones. No se modifican los permisos ni el rol del usuario: la autorización definitiva permanece en Django.
+
+Se añadieron comprobaciones de navegador para Corporate, Network, alcance global de Corporate, URLs con empresa ajena, ausencia de consultas a un directorio multiempresa en Corporate y visualización móvil de Almuerzos. Las muestras de solicitudes y motoristas de distintas secciones del contrato se normalizan a la misma empresa únicamente en los fixtures, para representar una sesión Corporate coherente. Los datos de prueba ajenos siguen presentes en los casos que verifican su exclusión.
+
+Cambios locales del frontend, sin Git, publicación ni modificaciones de backend, móvil, entornos o credenciales. La API y Google Maps se simulan en las pruebas.
+
+Validación: **75 pruebas unitarias y 36 escenarios distintos de navegador aprobados** para alcance de empresa, administración, almuerzos, límites y monitoreo. La regresión de cliente Network se comprobó separadamente tras distinguir en su fixture el administrador de cliente y el operador global de la red. Compilación TypeScript/Vite y formato correctos. Se inspeccionó `artifacts/empresa/corporate-almuerzos-320.png`, sin campo de empresa ni desbordamiento.

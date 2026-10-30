@@ -78,3 +78,7 @@ La entrega oficial informa que `organizaciones.0004_tubos_frascos_sin_articulos`
 ## Acceso administrativo a almuerzos · 2026-10-30
 
 Se añade `/almuerzos`, accesible desde menú y Administración con `repartidor.ver` y la protección administrativa existente. Usa el mismo GET paginado de motoristas, filtro `en_almuerzo`, empresa y perfil; muestra estado actual y hora de inicio conservando su offset. No exige permisos de reportes ni de seguimiento GPS. Los datos ausentes permanecen desconocidos y se advierte si el servidor no confirma el filtro. No incorpora escrituras ni acciones de jornada/almuerzo; no se cambia el backend.
+
+## Empresa fija para Corporate · 2026-10-30
+
+La UI permite elegir `empresa_id` solo al rol `OPERADOR_RED` de Network, identificado en el contrato de flota. Un alcance GLOBAL de Corporate no habilita el selector. Corporate toma el ID de `perfil.empresa`, ignora empresas ajenas solicitadas en la URL y muestra el nombre de su empresa. Los endpoints y sus permisos no cambian. El monitoreo añade el filtro autorizado a directorio y solicitudes, y excluye registros de otra empresa antes de consultar GPS. Las comprobaciones se realizan con API simulada, sin modificar backend ni datos operativos.

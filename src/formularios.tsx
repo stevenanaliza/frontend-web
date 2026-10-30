@@ -5,6 +5,7 @@ import { api, consulta, parsear } from "./api";
 import { paginaSchema } from "./contratos";
 import { empresaSchema, sucursalSchema } from "./contratos-admin";
 import { useAuth } from "./auth";
+import { empresaDeConsulta, puedeElegirEmpresa } from "./permisos";
 import { useEsperaReintento } from "./useEsperaReintento";
 import { Campo, ErroresFormulario, uuidPattern } from "./admin-comunes";
 import {
@@ -270,7 +271,7 @@ export function useAlcance(inicial?: Partial<Alcance>) {
   return useState<Alcance>({
     tipo_alcance:
       inicial?.tipo_alcance ?? (perfil?.sucursal ? "SUCURSAL" : "EMPRESA"),
-    empresa_id: inicial?.empresa_id ?? perfil?.empresa?.id ?? "",
+    empresa_id: empresaDeConsulta(perfil, inicial?.empresa_id),
     sucursal_id: inicial?.sucursal_id ?? perfil?.sucursal?.id ?? "",
   });
 }
@@ -298,9 +299,10 @@ export function EmpresaCampo({
       id={perfil?.empresa?.id === valor ? "empresa_id" : undefined}
       tabIndex={-1}
     >
-      {perfil?.empresa?.id === valor ? (
+      {!puedeElegirEmpresa(perfil) ? (
         <p className="contexto-form">
-          <strong>Empresa:</strong> {perfil.empresa.nombre}
+          <strong>Empresa:</strong>{" "}
+          {perfil?.empresa?.nombre ?? "Sin empresa asignada"}
         </p>
       ) : (
         <Campo
@@ -313,28 +315,30 @@ export function EmpresaCampo({
           error={error}
         />
       )}
-      <details>
-        <summary>Seleccionar otra empresa autorizada</summary>
-        {perfil?.permisos.includes("empresa.ver") ? (
-          <SelectorRemoto
-            ruta="/api/v1/organizaciones/empresas/"
-            schema={empresaSchema}
-            nombre="empresa_catalogo"
-            etiqueta="Empresas"
-            valor={valor}
-            cambiar={(id) => cambiar(id)}
-            describir={(e) => e.nombre}
-          />
-        ) : (
-          <Campo
-            nombre="empresa_contexto_id"
-            etiqueta="ID de la empresa autorizada"
-            pattern={uuidPattern}
-            value={valor}
-            onChange={(e) => cambiar(e.target.value)}
-          />
-        )}
-      </details>
+      {puedeElegirEmpresa(perfil) && (
+        <details>
+          <summary>Seleccionar otra empresa autorizada</summary>
+          {perfil?.permisos.includes("empresa.ver") ? (
+            <SelectorRemoto
+              ruta="/api/v1/organizaciones/empresas/"
+              schema={empresaSchema}
+              nombre="empresa_catalogo"
+              etiqueta="Empresas"
+              valor={valor}
+              cambiar={(id) => cambiar(id)}
+              describir={(e) => e.nombre}
+            />
+          ) : (
+            <Campo
+              nombre="empresa_contexto_id"
+              etiqueta="ID de la empresa autorizada"
+              pattern={uuidPattern}
+              value={valor}
+              onChange={(e) => cambiar(e.target.value)}
+            />
+          )}
+        </details>
+      )}
       <ErrorCampo error={error} campo="empresa_id" />
     </div>
   );

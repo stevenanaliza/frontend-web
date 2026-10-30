@@ -15,6 +15,7 @@ import {
   invalidarConsultasMotoristas,
 } from "./componentes";
 import { EmpresaCampo, Exito, Formulario, useOperacion } from "./formularios";
+import { empresaDeConsulta, puedeElegirEmpresa } from "./permisos";
 import {
   limitesMotoristasSchema,
   puedeConfigurarLimites,
@@ -25,8 +26,8 @@ const rutaRed = "/api/v1/organizaciones/configuracion/limites-motoristas/";
 export function LimitesMotoristas() {
   const { perfil } = useAuth();
   const [params, setParams] = useSearchParams();
-  const empresa = params.get("empresa_id") ?? perfil?.empresa?.id ?? "";
-  const red = params.get("alcance") === "RED";
+  const empresa = empresaDeConsulta(perfil, params.get("empresa_id"));
+  const red = puedeElegirEmpresa(perfil) && params.get("alcance") === "RED";
   if (!perfil) return null;
   const global =
     perfil.permisos.includes("configuracion.administrar") &&

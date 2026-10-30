@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { cargarMonitoreo, type MotoristaMonitor } from "./monitoreo";
+import { useAuth } from "./auth";
+import { puedeElegirEmpresa } from "./permisos";
 
 export function useMonitoreo() {
+  const { perfil } = useAuth();
+  const empresa = puedeElegirEmpresa(perfil) ? undefined : perfil?.empresa?.id;
   const [version, setVersion] = useState(0);
   const [automatico, guardarAutomatico] = useState(true);
   const automaticoActual = useRef(true);
@@ -31,7 +35,11 @@ export function useMonitoreo() {
         error: undefined,
       }));
       try {
-        const datos = await cargarMonitoreo(api.solicitar, control.signal);
+        const datos = await cargarMonitoreo(
+          api.solicitar,
+          control.signal,
+          empresa,
+        );
         if (control.signal.aborted) return;
         setEstado({ datos, cargando: false, actualizado: Date.now() });
         if (automaticoActual.current && !datos.some((d) => d.errorGps))
@@ -50,7 +58,7 @@ export function useMonitoreo() {
       control.abort();
       clearTimeout(timer);
     };
-  }, [version, visible]);
+  }, [version, visible, empresa]);
   const recargar = useCallback(() => setVersion((v) => v + 1), []);
   const setAutomatico = useCallback((valor: boolean) => {
     automaticoActual.current = valor;

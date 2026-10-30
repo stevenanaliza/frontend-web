@@ -30,6 +30,9 @@ const solicitudDocumento = ejemplosSeccion(
 )[0];
 export const solicitud = {
   ...solicitudDocumento,
+  // Los ejemplos de secciones distintas usan UUID de empresas diferentes.
+  // Esta sesión Corporate de prueba debe tener una sola empresa coherente.
+  empresa_id: resumen.repartidor.empresa_id,
   cantidad_tubos: null,
   cantidad_frascos: null,
 };
@@ -43,6 +46,7 @@ export const sucursal = ejemplosSeccion(
 const motoristaDocumento = ejemplosSeccion("### Motoristas")[2].resultados[0];
 export const motorista = {
   ...motoristaDocumento,
+  empresa_id: resumen.repartidor.empresa_id,
   ...resumen.carga_actual,
   limite_frascos: 20,
   frascos_comprometidos: 9,

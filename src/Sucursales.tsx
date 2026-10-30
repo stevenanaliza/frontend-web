@@ -11,11 +11,12 @@ import {
 import { Etiqueta, Panel } from "./componentes";
 import { NuevaSucursal } from "./Altas";
 import { Exito } from "./formularios";
+import { empresaDeConsulta, puedeElegirEmpresa } from "./permisos";
 
 export function Sucursales() {
   const { perfil } = useAuth();
   const [params, setParams] = useSearchParams();
-  const empresa = params.get("empresa_id") ?? perfil?.empresa?.id ?? "";
+  const empresa = empresaDeConsulta(perfil, params.get("empresa_id"));
   const [nueva, setNueva] = useState(params.get("crear") === "1"),
     [revision, setRevision] = useState(0),
     [mensaje, setMensaje] = useState("");
@@ -45,7 +46,7 @@ export function Sucursales() {
               </strong>
               <span>Solo se muestran las sucursales dentro de tu alcance.</span>
             </div>
-            {!perfil?.empresa && (
+            {puedeElegirEmpresa(perfil) && (
               <button
                 className="boton secundario"
                 onClick={() => setParams({})}

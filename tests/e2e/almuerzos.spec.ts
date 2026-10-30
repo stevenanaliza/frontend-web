@@ -194,7 +194,7 @@ test("directorio filtra por almuerzo en el servidor sin perder empresa ni pagina
   page,
 }) => {
   const { consultas, todas } = await preparar(page);
-  const empresa = "395be863-81e1-4196-a668-b698af836653";
+  const empresa = perfil.empresa.id;
   await page.goto(
     `/motoristas?empresa_id=${empresa}&estado_operativo=PAUSED&pagina=4`,
   );

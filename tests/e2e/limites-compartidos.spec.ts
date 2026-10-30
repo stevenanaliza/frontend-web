@@ -42,6 +42,7 @@ async function preparar(
     ],
     roles: perfil.roles.map((r) => ({
       ...r,
+      codigo: red && global ? "OPERADOR_RED" : r.codigo,
       tipo_alcance: global ? "GLOBAL" : sucursal ? "SUCURSAL" : "EMPRESA",
       empresa_id: global ? null : empresa,
       sucursal_id: sucursal ? "sucursal-prueba" : null,
@@ -136,22 +137,15 @@ test("Corporate configura una empresa, conserva otras y refresca los cupos consu
   await page.getByLabel("Límite de tubos por motorista").fill("25");
   await page.getByLabel("Límite de frascos por motorista").fill("12");
   await page.getByLabel("Límite de solicitudes por motorista").fill("3");
-  const empresasAntes = peticiones.filter(
-    (p) => p.ruta === "/api/v1/organizaciones/empresas/",
-  ).length;
   await page
     .getByRole("button", { name: "Guardar límites", exact: true })
     .click();
   await expect(
     page.getByRole("status").filter({ hasText: "Límites actualizados" }),
   ).toContainText("25 tubos, 12 frascos y 3 solicitudes activas por motorista");
-  await expect
-    .poll(
-      () =>
-        peticiones.filter((p) => p.ruta === "/api/v1/organizaciones/empresas/")
-          .length,
-    )
-    .toBeGreaterThan(empresasAntes);
+  expect(
+    peticiones.some((p) => p.ruta === "/api/v1/organizaciones/empresas/"),
+  ).toBe(false);
   expect(valores[otra]).toEqual({
     limite_tubos: 40,
     limite_frascos: 40,

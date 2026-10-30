@@ -41,12 +41,13 @@ import { EvidenciasSolicitud } from "./evidencias";
 import { OperacionesSolicitud } from "./OperacionesSolicitud";
 import { Exito } from "./formularios";
 import { useState } from "react";
+import { empresaDeConsulta, puedeElegirEmpresa } from "./permisos";
 
 export function Solicitudes() {
   const { perfil } = useAuth();
   const [params, setParams] = useSearchParams();
   const por = params.get("por") === "solicitante" ? "solicitante" : "sucursal";
-  const empresa = params.get("empresa_id") ?? "";
+  const empresa = empresaDeConsulta(perfil, params.get("empresa_id"));
   const seleccion = params.get("grupo");
   const nombre = params.get("nombre_grupo");
   const grupos = usePaginaRemota<GrupoSolicitud>(
@@ -61,7 +62,8 @@ export function Solicitudes() {
     nombreGrupo: string,
   ) {
     const siguiente = new URLSearchParams(params);
-    siguiente.set("empresa_id", empresaId);
+    if (puedeElegirEmpresa(perfil)) siguiente.set("empresa_id", empresaId);
+    else siguiente.delete("empresa_id");
     siguiente.set("grupo", id ?? "sin-sucursal");
     siguiente.set("nombre_grupo", nombreGrupo);
     siguiente.delete("pagina");

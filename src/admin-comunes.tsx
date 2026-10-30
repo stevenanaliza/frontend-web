@@ -9,6 +9,7 @@ import {
 import { RefreshCw, Search, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "./auth";
+import { puedeElegirEmpresa } from "./permisos";
 import { api, consulta, parsear } from "./api";
 import { empresaSchema } from "./contratos-admin";
 import { paginaSchema } from "./contratos";
@@ -137,6 +138,7 @@ export function Filtros({
   empresa?: boolean;
   conservar?: string[];
 }) {
+  const { perfil } = useAuth();
   const idTamano = `${useId()}-tamano-pagina`;
   const [params, setParams] = useSearchParams();
   function enviar(event: FormEvent<HTMLFormElement>) {
@@ -154,13 +156,16 @@ export function Filtros({
       if (valor === "") siguientes.delete(clave);
       else siguientes.set(clave, String(valor));
     });
+    if (empresa && !puedeElegirEmpresa(perfil)) {
+      siguientes.delete("empresa_id");
+    }
     setParams(siguientes);
   }
   return (
     <section className="panel filtros" aria-label="Filtros">
       <form key={params.toString()} onSubmit={enviar}>
         <div className="filtros-fila">
-          {empresa && (
+          {empresa && puedeElegirEmpresa(perfil) && (
             <label htmlFor="empresa_id">
               ID de empresa
               <input
@@ -258,6 +263,14 @@ export function SelectorEmpresa({
 }) {
   const { perfil } = useAuth();
   const [id, setId] = useState("");
+  if (!puedeElegirEmpresa(perfil)) {
+    return (
+      <section className="panel selector-empresa">
+        <h2>Empresa</h2>
+        <p>{perfil?.empresa?.nombre ?? "No tienes empresa asignada."}</p>
+      </section>
+    );
+  }
   return (
     <section className="panel selector-empresa">
       <h2>Selecciona la empresa</h2>

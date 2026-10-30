@@ -11,18 +11,22 @@ import {
   usePaginaRemota,
 } from "./admin-comunes";
 import { Etiqueta, Panel, estados, numero } from "./componentes";
-import { puedeVerReportes } from "./permisos";
+import {
+  puedeVerReportes,
+  empresaDeConsulta,
+  puedeElegirEmpresa,
+} from "./permisos";
 import { NuevoMotorista } from "./Altas";
 import { EstadoAlmuerzo } from "./EstadoAlmuerzo";
 
 export function Motoristas() {
   const { perfil } = useAuth();
   const [params] = useSearchParams();
-  const empresa = params.get("empresa_id") ?? perfil?.empresa?.id ?? "";
+  const empresa = empresaDeConsulta(perfil, params.get("empresa_id"));
   const [nuevo, setNuevo] = useState(params.get("crear") === "1");
   const [mensaje, setMensaje] = useState("");
   const listado = usePaginaRemota("/api/v1/repartidores/", motoristaSchema, {
-    empresa_id: params.get("empresa_id") ?? "",
+    empresa_id: empresa,
     activo: params.get("activo") ?? "",
     estado_operativo: params.get("estado_operativo") ?? "",
     capacidad: params.get("capacidad") ?? "",
@@ -40,7 +44,7 @@ export function Motoristas() {
             {perfil?.permisos.includes("empresa.ver") && (
               <Link
                 className="boton secundario"
-                to={`/limites-motoristas${empresa ? `?empresa_id=${encodeURIComponent(empresa)}` : ""}`}
+                to={`/limites-motoristas${puedeElegirEmpresa(perfil) && empresa ? `?empresa_id=${encodeURIComponent(empresa)}` : ""}`}
               >
                 Límites compartidos
               </Link>

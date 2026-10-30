@@ -110,6 +110,17 @@ async function backendAdmin(
       return responder(solicitud);
     if (ruta === "/api/v1/repartidores/")
       return responder(pagina([estadoMotorista]));
+    if (ruta === `/api/v1/organizaciones/empresas/${perfil.empresa.id}/`)
+      return responder({
+        id: perfil.empresa.id,
+        nombre: perfil.empresa.nombre,
+        estado: "ACTIVO",
+        razon_social: "Analiza S. A.",
+        identificacion_fiscal: null,
+        telefono: null,
+        correo: null,
+        pais: { id: "hn", iso2: "HN", nombre: "Honduras" },
+      });
     if (
       ruta ===
       `/api/v1/organizaciones/empresas/${perfil.empresa.id}/limites-motoristas/`
@@ -161,6 +172,70 @@ async function entrar(page: Page) {
   await page.getByLabel("Contraseña", { exact: true }).fill("solo-prueba");
   await page.getByRole("button", { name: "Entrar al panel" }).click();
 }
+test("Corporate no muestra ni acepta el ID de otra empresa en sus consultas", async ({
+  page,
+}) => {
+  const peticiones = await backendAdmin(page);
+  await entrar(page);
+  const otra = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+  await page.goto(`/motoristas?empresa_id=${otra}`);
+  await expect(
+    page.getByRole("heading", { name: "Motoristas", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("ID de empresa")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      peticiones.some(
+        (p) =>
+          p.url.pathname === "/api/v1/repartidores/" &&
+          p.url.searchParams.get("empresa_id") === perfil.empresa.id,
+      ),
+    )
+    .toBe(true);
+
+  await page.goto(`/solicitudes?empresa_id=${otra}`);
+  await expect(
+    page.getByRole("heading", { name: "Solicitudes", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("ID de empresa")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      peticiones.some(
+        (p) =>
+          p.url.pathname === "/api/v1/solicitudes/agrupaciones/" &&
+          p.url.searchParams.get("empresa_id") === perfil.empresa.id,
+      ),
+    )
+    .toBe(true);
+
+  await page.goto(`/resumenes?empresa_id=${otra}`);
+  await page.getByRole("button", { name: "Más filtros" }).click();
+  await expect(page.getByLabel("ID de empresa")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      peticiones.some(
+        (p) =>
+          p.url.pathname === "/api/v1/repartidores/resumenes/" &&
+          p.url.searchParams.get("empresa_id") === perfil.empresa.id,
+      ),
+    )
+    .toBe(true);
+
+  await page.goto("/empresas");
+  await expect(page.getByRole("heading", { name: "Mi empresa" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: perfil.empresa.nombre }),
+  ).toBeVisible();
+  await expect(page.getByText("ID de empresa")).toHaveCount(0);
+  expect(
+    peticiones.some(
+      (p) =>
+        p.url.pathname ===
+        `/api/v1/organizaciones/empresas/${perfil.empresa.id}/`,
+    ),
+  ).toBe(true);
+});
 test("solicitudes por sucursal, sin sucursal, solicitante y paginación remota", async ({
   page,
 }) => {

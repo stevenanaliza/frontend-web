@@ -16,11 +16,77 @@ import {
   ErrorVista,
   Etiqueta,
   Panel,
+  Vacio,
   useConsulta,
 } from "./componentes";
 import { EmpresaCampo, Exito, Formulario, useOperacion } from "./formularios";
+import { empresaDeConsulta, puedeElegirEmpresa } from "./permisos";
 
 export function Empresas() {
+  const { perfil } = useAuth();
+  if (!puedeElegirEmpresa(perfil)) {
+    return perfil?.empresa?.id ? (
+      <EmpresaPropia id={perfil.empresa.id} />
+    ) : (
+      <Vacio
+        titulo="Sin empresa asignada"
+        texto="Tu cuenta necesita una empresa asociada para consultar este módulo."
+      />
+    );
+  }
+  return <DirectorioEmpresas />;
+}
+
+function EmpresaPropia({ id }: { id: string }) {
+  const ruta = `/api/v1/organizaciones/empresas/${encodeURIComponent(id)}/`;
+  const detalle = useConsulta(
+    async (signal) =>
+      parsear(empresaDetalleSchema, await api.solicitar(ruta, { signal })),
+    ruta,
+  );
+  return (
+    <>
+      <Cabecera
+        titulo="Mi empresa"
+        texto="Información de la organización a la que pertenece tu cuenta."
+        recargar={detalle.recargar}
+        cargando={detalle.cargando}
+      />
+      {detalle.cargando ? (
+        <Cargando />
+      ) : detalle.error ? (
+        <ErrorVista error={detalle.error} reintentar={detalle.recargar} />
+      ) : detalle.datos ? (
+        <Panel titulo={detalle.datos.nombre}>
+          <p>{detalle.datos.razon_social ?? "Sin razón social registrada"}</p>
+          <p>
+            {detalle.datos.pais.nombre} ·{" "}
+            {detalle.datos.estado === "ACTIVO"
+              ? "Activa"
+              : detalle.datos.estado}
+          </p>
+          <p>
+            {detalle.datos.correo ?? "Sin correo"} ·{" "}
+            {detalle.datos.telefono ?? "Sin teléfono"}
+          </p>
+          <div className="acciones">
+            <Link className="boton secundario" to="/sucursales">
+              Sucursales
+            </Link>
+            <Link className="boton secundario" to="/motoristas">
+              Motoristas
+            </Link>
+            <Link className="boton secundario" to="/limites-motoristas">
+              Límites de motoristas
+            </Link>
+          </div>
+        </Panel>
+      ) : null}
+    </>
+  );
+}
+
+function DirectorioEmpresas() {
   const { perfil } = useAuth();
   const listado = usePaginaRemota(
     "/api/v1/organizaciones/empresas/",
@@ -147,7 +213,7 @@ export function Empresas() {
 export function Ubicaciones() {
   const { perfil } = useAuth();
   const [params, setParams] = useSearchParams();
-  const empresa = params.get("empresa_id") ?? perfil?.empresa?.id ?? "";
+  const empresa = empresaDeConsulta(perfil, params.get("empresa_id"));
   const [nueva, setNueva] = useState(params.get("crear") === "1");
   return (
     <>

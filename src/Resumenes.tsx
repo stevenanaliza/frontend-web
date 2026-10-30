@@ -11,6 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { api, consulta, parsear } from "./api";
+import { useAuth } from "./auth";
+import { empresaDeConsulta, puedeElegirEmpresa } from "./permisos";
 import { paginaSchema, resumenSchema } from "./contratos";
 import {
   Cargando,
@@ -27,11 +29,12 @@ import {
 } from "./componentes";
 
 export function Resumenes() {
+  const { perfil } = useAuth();
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const filtros = {
     fecha_operativa: params.get("fecha_operativa") ?? "",
-    empresa_id: params.get("empresa_id") ?? "",
+    empresa_id: empresaDeConsulta(perfil, params.get("empresa_id")),
     repartidor_id: params.get("repartidor_id") ?? "",
     activo: params.get("activo") ?? "",
     pagina: Math.max(1, Number(params.get("pagina")) || 1),
@@ -40,7 +43,10 @@ export function Resumenes() {
       : 20,
   };
   const [avanzados, setAvanzados] = useState(
-    Boolean(filtros.empresa_id || filtros.repartidor_id),
+    Boolean(
+      (puedeElegirEmpresa(perfil) && filtros.empresa_id) ||
+      filtros.repartidor_id,
+    ),
   );
   const ruta = `/api/v1/repartidores/resumenes/${consulta(filtros)}`;
   const { datos, cargando, error, recargar } = useConsulta(
@@ -58,6 +64,7 @@ export function Resumenes() {
     form.forEach((valor, clave) => {
       if (valor !== "") siguientes.set(clave, String(valor));
     });
+    if (!puedeElegirEmpresa(perfil)) siguientes.delete("empresa_id");
     setParams(siguientes);
   }
   function cambiarPagina(pagina: number) {
@@ -159,7 +166,10 @@ export function Resumenes() {
             className="filtros-avanzados"
             hidden={!avanzados}
           >
-            {(["empresa_id", "repartidor_id"] as const).map((campo) => (
+            {(puedeElegirEmpresa(perfil)
+              ? (["empresa_id", "repartidor_id"] as const)
+              : (["repartidor_id"] as const)
+            ).map((campo) => (
               <label key={campo} htmlFor={campo}>
                 {campo === "empresa_id" ? "ID de empresa" : "ID de motorista"}
                 <input

@@ -61,6 +61,7 @@ async function paginas<T extends { id: string }>(
   schema: z.ZodType<T>,
   signal: AbortSignal,
   estado?: string,
+  empresaId?: string,
 ) {
   const registros = new Map<string, T>();
   for (let pagina = 1; ; pagina++) {
@@ -70,6 +71,7 @@ async function paginas<T extends { id: string }>(
       tamano_pagina: "100",
     });
     if (estado) filtros.set("estado", estado);
+    if (empresaId) filtros.set("empresa_id", empresaId);
     const datos = parsear(
       paginaSchema(schema),
       await pedir(`${ruta}?${filtros}`, { signal }),
@@ -108,16 +110,28 @@ async function concurrentes<T, R>(
 export async function cargarMonitoreo(
   pedir: PedirMonitoreo,
   signal: AbortSignal,
+  empresaId?: string,
 ): Promise<MotoristaMonitor[]> {
-  const motoristas = await paginas(
-    pedir,
-    "/api/v1/repartidores/",
-    motoristaSchema,
-    signal,
-  );
+  const motoristas = (
+    await paginas(
+      pedir,
+      "/api/v1/repartidores/",
+      motoristaSchema,
+      signal,
+      undefined,
+      empresaId,
+    )
+  ).filter((m) => !empresaId || m.empresa_id === empresaId);
   if (!motoristas.length) return [];
   const lotes = await concurrentes([...estadosMonitoreo], (estado) =>
-    paginas(pedir, "/api/v1/solicitudes/", solicitudSchema, signal, estado),
+    paginas(
+      pedir,
+      "/api/v1/solicitudes/",
+      solicitudSchema,
+      signal,
+      estado,
+      empresaId,
+    ),
   );
   const ids = new Set(motoristas.map((m) => m.id));
   const solicitudes = [
@@ -125,7 +139,10 @@ export async function cargarMonitoreo(
       lotes
         .flat()
         .filter(
-          (s) => s.repartidor_asignado_id && ids.has(s.repartidor_asignado_id),
+          (s) =>
+            (!empresaId || s.empresa_id === empresaId) &&
+            s.repartidor_asignado_id &&
+            ids.has(s.repartidor_asignado_id),
         )
         .map((s) => [s.id, s]),
     ).values(),

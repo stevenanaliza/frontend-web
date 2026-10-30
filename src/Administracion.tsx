@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useAuth } from "./auth";
 import { Cabecera } from "./admin-comunes";
-import { tieneTodos, permisosMonitoreo } from "./permisos";
+import { tieneTodos, permisosMonitoreo, puedeElegirEmpresa } from "./permisos";
 
 const acciones = [
   {
@@ -90,7 +90,8 @@ export function Administracion() {
         texto="Crea y gestiona los registros de VitaGo dentro de tu alcance autorizado."
       />
       <div className="acciones-admin">
-        {!perfil.permisos.includes("empresa.ver") &&
+        {puedeElegirEmpresa(perfil) &&
+          !perfil.permisos.includes("empresa.ver") &&
           perfil.permisos.includes("configuracion.administrar") &&
           perfil.roles.some((r) => r.tipo_alcance === "GLOBAL") && (
             <Link

@@ -8,6 +8,13 @@ export const permisosReporte = [
 ];
 export const tieneTodos = (perfil: Perfil, permisos: string[]) =>
   permisos.every((p) => perfil.permisos.includes(p));
+export const puedeElegirEmpresa = (perfil: Perfil | null) =>
+  Boolean(perfil?.roles.some((r) => r.codigo === "OPERADOR_RED"));
+export const empresaDeConsulta = (
+  perfil: Perfil | null,
+  solicitada?: string | null,
+) =>
+  puedeElegirEmpresa(perfil) ? (solicitada ?? "") : (perfil?.empresa?.id ?? "");
 export const puedeVerReportes = (perfil: Perfil) =>
   tieneTodos(perfil, permisosReporte);
 export const permisosMonitoreo = [

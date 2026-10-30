@@ -383,20 +383,21 @@ test("registra ubicación y aprueba su relación con los identificadores correct
     permite_destino: false,
   });
 });
-test("consulta empresas y registra motocicletas desde su módulo", async ({
+test("consulta su empresa Corporate y registra motocicletas desde su módulo", async ({
   page,
 }) => {
   const peticiones = await preparar(page);
   await page.goto("/empresas");
   await expect(
-    page
-      .getByRole("region", { name: "Empresas", exact: true })
-      .getByText(empresaDatos.nombre, { exact: true }),
+    page.getByRole("heading", { name: "Mi empresa", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("region", { name: "Empresas", exact: true })
-    .getByRole("link", { name: "Vehículos", exact: true })
-    .click();
+  await expect(
+    page.getByRole("region", { name: empresaDatos.nombre, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "ID de empresa", exact: true }),
+  ).toHaveCount(0);
+  await page.goto("/vehiculos");
   await page
     .getByRole("button", { name: "Registrar motocicleta", exact: true })
     .click();

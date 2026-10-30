@@ -57,6 +57,34 @@ function preparar(
 }
 const signal = () => new AbortController().signal;
 describe("monitoreo con GPS operativo autorizado", () => {
+  it("consulta y muestra solo los motoristas de la empresa del perfil", async () => {
+    const { pedir, rutas } = preparar({
+      motoristas: [
+        motorista,
+        { ...motorista, id: "otro", empresa_id: "otra-empresa" },
+      ],
+    });
+    const registros = await cargarMonitoreo(
+      pedir,
+      signal(),
+      motorista.empresa_id!,
+    );
+    expect(registros.map((r) => r.motorista.id)).toEqual([motorista.id]);
+    expect(
+      rutas
+        .filter((r) => {
+          const path = new URL(r, "http://api.test").pathname;
+          return (
+            path.endsWith("/repartidores/") || path.endsWith("/solicitudes/")
+          );
+        })
+        .every(
+          (r) =>
+            new URL(r, "http://api.test").searchParams.get("empresa_id") ===
+            motorista.empresa_id,
+        ),
+    ).toBe(true);
+  });
   it("agrupa la carga real y las solicitudes por motorista, sin sumar hitos", async () => {
     const { pedir, rutas } = preparar();
     const [registro] = await cargarMonitoreo(pedir, signal());

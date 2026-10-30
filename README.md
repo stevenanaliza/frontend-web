@@ -169,3 +169,9 @@ Corporate y Network mantienen dominios, bases, sesiones y configuración indepen
 ### Validación de 0.43.0–0.44.0
 
 71 pruebas unitarias y 53 escenarios distintos de navegador aprobados en esta adaptación, con API y mapa simulados. Se verifican alta solo tubos/solo frascos, carga vacía, conservación de históricos, regularización después de recoger, límites Corporate/Network, disponibilidad por ambos conteos, 400/409, recuperación 503 en login/perfil/consulta/escritura/GPS y diseño responsive. Compilación y formato correctos. Google Maps real queda para la prueba autorizada en Vercel. Cambios locales, sin publicación ni Git.
+
+### Empresa automática en Corporate
+
+Corporate utiliza siempre la empresa del perfil para consultar motoristas, almuerzos, resúmenes, solicitudes, flota, sucursales, ubicaciones y límites. No muestra «ID de empresa» ni controles para cambiarla; el directorio de empresas se sustituye por «Mi empresa». Un `empresa_id` ajeno en la URL no cambia el contexto. Los filtros de Corporate no agregan ese identificador a sus URLs. Monitorear consulta la empresa propia y descarta motoristas/solicitudes de otras empresas en la respuesta.
+
+La selección entre empresas queda reservada al rol de administración Network `OPERADOR_RED`. El backend conserva la autorización y el alcance definitivos; no se modifican permisos ni roles desde esta adaptación.
