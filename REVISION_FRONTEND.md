@@ -126,3 +126,13 @@ Las capturas de alta, límites, directorio y resumen están en `artifacts/carga/
 Compilación TypeScript/Vite correcta; aviso no bloqueante de Vite por chunk principal de 501.70 kB (145.41 kB gzip). Cambios locales del frontend web, sin publicación, operaciones Git, cambios de backend/móvil ni modificaciones de entorno o credenciales.
 
 Validación final: **71 pruebas unitarias y 53 escenarios distintos de navegador aprobados** en las ejecuciones de administración, alta, carga/503, asignación, límites compartidos y monitoreo. Las dos pruebas nuevas de alta se corrigieron para localizar los controles por rol; los errores de campo se localizan sin exigir que desaparezca su texto del nombre accesible. La revisión del mapa usa los conteos actuales y consulta artículos como historial. No se ejecutó la comprobación opcional de Google Maps real. Compilación y formato correctos.
+
+## Acceso visible a Almuerzos · 2026-10-30
+
+Los indicadores existentes en Motoristas y Monitorear se conservan. Se añade una sección dedicada `/almuerzos`, cargada al abrirla, con enlace «Almuerzos» en la navegación principal y «Revisar almuerzos» en Administración. Este último abre directamente el filtro de motoristas en almuerzo.
+
+Las tarjetas muestran nombre, correo, indicador explícito, hora de inicio con offset, estado operativo y vigencia del perfil. Se consultan los filtros y la paginación del servidor, con actualización manual y datos desconocidos diferenciados. Las pausas genéricas no se convierten en almuerzos. El administrador revisa el estado actual sin poder iniciar o terminar almuerzos de otros; no se añaden POST/PATCH ni se cambian permisos. Se exige `repartidor.ver` y el acceso administrativo existente, sin necesitar permisos de mapa o reportes.
+
+Capturas de la nueva sección en `artifacts/almuerzos/seccion-{320,820,1440}.png`. Cambios locales del frontend web, sin publicación, Git ni modificaciones del backend o móvil.
+
+Validación de esta sección: **8 escenarios de navegador aprobados**, incluidos accesos de menú/Administración, permisos, filtro remoto, regreso reportado, datos desconocidos y regresión de Motoristas/Monitorear. Capturas de 320, 820 y 1440 píxeles inspeccionadas sin desbordamiento. Compilación y formato correctos; API simulada, sin consultas operativas.

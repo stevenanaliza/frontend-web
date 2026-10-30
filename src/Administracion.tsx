@@ -6,17 +6,23 @@ import { tieneTodos, permisosMonitoreo } from "./permisos";
 
 const acciones = [
   {
+    nombre: "Revisar almuerzos",
+    ruta: "/almuerzos?en_almuerzo=true",
+    permisos: ["repartidor.ver"],
+    texto: "Motoristas en almuerzo y hora de inicio reportada.",
+  },
+  {
     nombre: "Monitorear",
     ruta: "/monitorear",
     permisos: permisosMonitoreo,
     texto:
-      "Ubicación reportada, solicitudes, artículos y carga de los motoristas.",
+      "Ubicación reportada, solicitudes y carga de tubos y frascos de los motoristas.",
   },
   {
     nombre: "Crear solicitud",
     ruta: "/solicitudes/nueva",
     permisos: ["solicitud.crear", "solicitud.ver"],
-    texto: "Traslados, tubos, artículos, prioridad y destino.",
+    texto: "Traslados, tubos, frascos, prioridad y destino.",
   },
   {
     nombre: "Crear usuario",
@@ -65,7 +71,7 @@ const acciones = [
     ruta: "/limites-motoristas",
     permisos: ["empresa.ver"],
     texto:
-      "Configuración compartida de tubos y solicitudes, con cupo individual por motorista.",
+      "Configuración compartida de tubos, frascos y solicitudes, con cupo individual por motorista.",
   },
   {
     nombre: "Gestionar ubicaciones",

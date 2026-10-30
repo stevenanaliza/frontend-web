@@ -32,6 +32,7 @@ import {
   MapPin,
   Bike,
   LayoutGrid,
+  Utensils,
   X,
 } from "lucide-react";
 import { useAuth } from "./auth";
@@ -60,6 +61,7 @@ import { Vehiculos } from "./Vehiculos";
 import { Administracion } from "./Administracion";
 import { LimitesMotoristas } from "./LimitesMotoristas";
 const Monitorear = lazy(() => import("./Monitorear"));
+const Almuerzos = lazy(() => import("./PaginaAlmuerzos"));
 const iconos = [
   PackageSearch,
   Users,
@@ -226,6 +228,12 @@ function Estructura() {
             <NavLink onClick={() => setMenu(false)} to="/monitorear">
               <MapPin size={19} aria-hidden="true" />
               Monitorear
+            </NavLink>
+          )}
+          {perfil.permisos.includes("repartidor.ver") && (
+            <NavLink onClick={() => setMenu(false)} to="/almuerzos">
+              <Utensils size={19} aria-hidden="true" />
+              Almuerzos
             </NavLink>
           )}
           {puedeVerReportes(perfil) && (
@@ -443,6 +451,16 @@ export function App() {
         <Route element={<Estructura />}>
           <Route path="/limites-motoristas" element={<LimitesMotoristas />} />
           <Route path="/administracion" element={<Administracion />} />
+          <Route
+            path="/almuerzos"
+            element={
+              <ProteccionModulo permisos={["repartidor.ver"]}>
+                <Suspense fallback={<Cargando texto="Abriendo almuerzos…" />}>
+                  <Almuerzos />
+                </Suspense>
+              </ProteccionModulo>
+            }
+          />
           <Route
             path="/monitorear"
             element={

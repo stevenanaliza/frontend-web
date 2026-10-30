@@ -20,3 +20,44 @@
   font-size: 12px;
   line-height: 1.6;
 }
+.almuerzos-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 20px;
+  list-style: none;
+}
+.almuerzos-lista > li {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+.almuerzos-lista h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.almuerzo-correo {
+  margin: 6px 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.almuerzo-perfil {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .almuerzos-lista {
+    padding: 16px;
+  }
+  .almuerzos-lista > li {
+    padding: 16px;
+  }
+}

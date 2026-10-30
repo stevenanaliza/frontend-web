@@ -74,3 +74,7 @@ El proxy opcional de Vite funciona únicamente durante el desarrollo local. Reen
 - 503 `CIERRE_OPERATIVO_PENDIENTE`: mensaje de preparación, plazo monotónico de Retry-After, reintento manual después de la espera, bloqueo temporal compartido de peticiones y conservación de JWT ante la renovación temporalmente indisponible. No se repiten POST/PATCH automáticamente.
 
 La entrega oficial informa que `organizaciones.0004_tubos_frascos_sin_articulos` y `solicitudes.0009_tubos_frascos_sin_articulos` solo están aplicadas localmente en el backend. No se verifican ni ejecutan migraciones externas desde este proyecto. La publicación coordinada de 0.43/0.44 en Render y Vercel queda pendiente. Pruebas de esta adaptación con respuestas simuladas, sin consultas ni escrituras contra Render o Google.
+
+## Acceso administrativo a almuerzos · 2026-10-30
+
+Se añade `/almuerzos`, accesible desde menú y Administración con `repartidor.ver` y la protección administrativa existente. Usa el mismo GET paginado de motoristas, filtro `en_almuerzo`, empresa y perfil; muestra estado actual y hora de inicio conservando su offset. No exige permisos de reportes ni de seguimiento GPS. Los datos ausentes permanecen desconocidos y se advierte si el servidor no confirma el filtro. No incorpora escrituras ni acciones de jornada/almuerzo; no se cambia el backend.

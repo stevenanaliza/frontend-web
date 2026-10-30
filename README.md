@@ -103,6 +103,8 @@ El contrato ofrece restablecimiento administrativo de contraseña, que revoca la
 
 ### Almuerzo administrativo · 0.42.0
 
+La sección **Almuerzos** (`/almuerzos`) está en el menú principal y en **Administración → Revisar almuerzos**. El acceso administrativo abre directamente el filtro «En almuerzo». Muestra tarjetas con motorista, estado explícito y hora de inicio, filtros remotos de empresa/perfil/almuerzo, paginación y actualización manual. Requiere `repartidor.ver` además del acceso administrativo al panel. Es una consulta del estado actual; no registra salidas o regresos ajenos.
+
 Motoristas incorpora el filtro remoto `en_almuerzo=true/false`, combinado con los filtros y la paginación existentes. El directorio, el listado de Monitorear y la ficha seleccionada muestran el indicador y `almuerzo_iniciado_en`. Monitorear filtra los datos autorizados que ya ha consultado y diferencia «Sin información» de «Fuera de almuerzo». La hora de inicio conserva la fecha y el desplazamiento UTC del servidor; no se deduce desde el reloj del navegador ni desde `estado_operativo=PAUSED`.
 
 Los campos nuevos son opcionales mientras se actualiza el backend externo. Su ausencia se muestra como «Sin información de almuerzo»; si un servidor anterior ignora el filtro remoto y devuelve datos sin ese campo, se advierte que el filtro no está confirmado. No se asignan false, null o una hora ficticia.
