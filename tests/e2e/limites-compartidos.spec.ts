@@ -19,11 +19,11 @@ async function preparar(
   const peticiones: { ruta: string; metodo: string; cuerpo: any }[] = [];
   const valores: Record<
     string,
-    { limite_tubos: number; limite_solicitudes: number }
+    { limite_tubos: number; limite_frascos: number; limite_solicitudes: number }
   > = {
-    [empresa]: { limite_tubos: 20, limite_solicitudes: 5 },
-    [otra]: { limite_tubos: 40, limite_solicitudes: 4 },
-    RED: { limite_tubos: 20, limite_solicitudes: 5 },
+    [empresa]: { limite_tubos: 20, limite_frascos: 20, limite_solicitudes: 5 },
+    [otra]: { limite_tubos: 40, limite_frascos: 40, limite_solicitudes: 4 },
+    RED: { limite_tubos: 20, limite_frascos: 20, limite_solicitudes: 5 },
   };
   const paginar = (resultados: unknown[]) => ({
     conteo: resultados.length,
@@ -81,6 +81,7 @@ async function preparar(
           );
         valores[clave] = {
           limite_tubos: cuerpo.limite_tubos,
+          limite_frascos: cuerpo.limite_frascos,
           limite_solicitudes: cuerpo.limite_solicitudes,
         };
       }
@@ -133,6 +134,7 @@ test("Corporate configura una empresa, conserva otras y refresca los cupos consu
     .getByRole("button", { name: "Editar límites compartidos" })
     .click();
   await page.getByLabel("Límite de tubos por motorista").fill("25");
+  await page.getByLabel("Límite de frascos por motorista").fill("12");
   await page.getByLabel("Límite de solicitudes por motorista").fill("3");
   const empresasAntes = peticiones.filter(
     (p) => p.ruta === "/api/v1/organizaciones/empresas/",
@@ -142,7 +144,7 @@ test("Corporate configura una empresa, conserva otras y refresca los cupos consu
     .click();
   await expect(
     page.getByRole("status").filter({ hasText: "Límites actualizados" }),
-  ).toContainText("25 tubos y 3 solicitudes activas por motorista");
+  ).toContainText("25 tubos, 12 frascos y 3 solicitudes activas por motorista");
   await expect
     .poll(
       () =>
@@ -150,7 +152,11 @@ test("Corporate configura una empresa, conserva otras y refresca los cupos consu
           .length,
     )
     .toBeGreaterThan(empresasAntes);
-  expect(valores[otra]).toEqual({ limite_tubos: 40, limite_solicitudes: 4 });
+  expect(valores[otra]).toEqual({
+    limite_tubos: 40,
+    limite_frascos: 40,
+    limite_solicitudes: 4,
+  });
   await page.goto("/motoristas");
   await expect(page.getByRole("table")).toContainText("25 tubos");
   await expect(

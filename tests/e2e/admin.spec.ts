@@ -134,6 +134,7 @@ async function backendAdmin(
         empresa_id: perfil.empresa.id,
         alcance: "EMPRESA",
         limite_tubos: estadoMotorista.limite_tubos,
+        limite_frascos: estadoMotorista.limite_frascos,
         limite_solicitudes: estadoMotorista.limite_solicitudes,
       });
     }
@@ -206,7 +207,7 @@ test("solicitudes por sucursal, sin sucursal, solicitante y paginación remota",
     .click();
   await expect(
     page.getByRole("region", { name: "Solicitudes del grupo" }),
-  ).toContainText("Sin declarar");
+  ).toContainText("No registrado");
   expect(
     peticiones.some(
       (p) =>
@@ -259,11 +260,12 @@ test("guarda el límite con motivo una sola vez y muestra la respuesta", async (
     .click();
   await expect(
     page.getByRole("status").filter({ hasText: "Límites actualizados" }),
-  ).toContainText("30 tubos y 5 solicitudes activas por motorista");
+  ).toContainText("30 tubos, 20 frascos y 5 solicitudes activas por motorista");
   const cambios = peticiones.filter((p) => p.metodo === "PATCH");
   expect(cambios).toHaveLength(1);
   expect(cambios[0].cuerpo).toEqual({
     limite_tubos: 30,
+    limite_frascos: 20,
     limite_solicitudes: 5,
     motivo: "Contenedor aprobado",
   });

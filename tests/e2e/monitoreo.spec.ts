@@ -6,7 +6,7 @@ import { abrirMonitoreo, prepararMonitoreo } from "./soporte-monitoreo";
 if (process.env.VITAGO_MAPA_REAL === "1")
   test.use({ trace: "off", screenshot: "off" });
 
-test("seleccionar un punto muestra la carga, las solicitudes, artículos y vehículo", async ({
+test("seleccionar un punto muestra la carga, las solicitudes, frascos y vehículo", async ({
   page,
 }) => {
   await simularGoogleMaps(page);
@@ -24,11 +24,17 @@ test("seleccionar un punto muestra la carga, las solicitudes, artículos y vehí
   await expect(
     ficha.getByText("Tubos en transporte", { exact: true }),
   ).toBeVisible();
-  await expect(ficha.getByText("REF-PRUEBA")).toHaveCount(2);
+  await expect(ficha.getByText("3 tubos · 2 frascos")).toHaveCount(2);
+  await expect(
+    ficha.getByText("Frascos en transporte", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    ficha.getByText("Ver artículos históricos en el detalle"),
+  ).toHaveCount(2);
   await expect(ficha.getByText("2 / 5", { exact: true })).toBeVisible();
   await expect(ficha.getByText("6 / 20", { exact: true })).toBeVisible();
   await expect(ficha.getByText(/HBA-1234/)).toBeVisible();
-  await expect(ficha.getByRole("link")).toHaveCount(2);
+  await expect(ficha.getByRole("link")).toHaveCount(4);
   expect(
     peticiones
       .filter((p) => !p.ruta.endsWith("iniciar-sesion/"))
@@ -126,6 +132,34 @@ test("deniega navegación y lectura GPS sin el permiso oficial", async ({
   ).toBe(false);
 });
 
+test("la recuperación 503 durante el GPS informa la espera y no conserva puntos antiguos", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await simularGoogleMaps(page);
+  const { control, peticiones } = await prepararMonitoreo(page);
+  await abrirMonitoreo(page);
+  await expect(page.locator("gmp-marcador-prueba")).toHaveCount(2);
+  control.errorGps = 503;
+  await page.getByRole("button", { name: "Actualizar", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "recuperando el cierre operativo",
+  );
+  await expect(page.locator("gmp-marcador-prueba")).toHaveCount(0);
+  const reintentar = page.getByRole("button", { name: "Volver a intentar" });
+  await expect(reintentar).toBeDisabled();
+  const antes = peticiones.length;
+  await page.clock.fastForward(4000);
+  await expect(reintentar).toBeDisabled();
+  expect(peticiones).toHaveLength(antes);
+  control.errorGps = 0;
+  await page.clock.fastForward(1250);
+  await expect(reintentar).toBeEnabled();
+  expect(peticiones).toHaveLength(antes);
+  await reintentar.click();
+  await expect(page.locator("gmp-marcador-prueba")).toHaveCount(2);
+});
+
 test("un error de Google Maps mantiene accesibles el listado y la ficha", async ({
   page,
 }) => {
@@ -163,7 +197,7 @@ test("mapa y ficha caben en móvil, tableta, escritorio y horizontal", async ({
       .click();
     await expect(
       page.getByRole("region", { name: "Detalle del motorista seleccionado" }),
-    ).toContainText("Contenedor de prueba");
+    ).toContainText("3 tubos · 2 frascos");
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBeLessThanOrEqual(viewport.width);

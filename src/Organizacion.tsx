@@ -1,3 +1,4 @@
+import { cantidad } from "./carga";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "./auth";
@@ -87,6 +88,10 @@ export function Empresas() {
                             <strong>
                               {e.limites_motoristas.limite_tubos} tubos
                             </strong>
+                            <small>
+                              {cantidad(e.limites_motoristas.limite_frascos)}{" "}
+                              frascos
+                            </small>
                             <small>
                               {e.limites_motoristas.limite_solicitudes}{" "}
                               solicitudes activas

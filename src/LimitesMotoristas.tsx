@@ -1,3 +1,4 @@
+import { cantidad } from "./carga";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "./auth";
@@ -149,14 +150,18 @@ function ConfiguracionLimites({
               <dd>{numero(datos.limite_tubos)}</dd>
             </div>
             <div>
+              <dt>Frascos por motorista</dt>
+              <dd>{cantidad(datos.limite_frascos)}</dd>
+            </div>
+            <div>
               <dt>Solicitudes activas por motorista</dt>
               <dd>{numero(datos.limite_solicitudes)}</dd>
             </div>
           </dl>
           <p className="ayuda-form">
-            El cupo es individual. No es un fondo compartido entre motoristas.
-            La disponibilidad depende de la carga y del estado operativo que
-            calcula el servidor.
+            Los cupos de tubos y frascos son independientes e individuales por
+            motorista. La disponibilidad depende de la carga y del estado
+            operativo que calcula el servidor.
           </p>
           {permitido ? (
             !editar && (
@@ -204,6 +209,7 @@ function ConfiguracionLimites({
                 method: "PATCH",
                 body: JSON.stringify({
                   limite_tubos: Number(form.get("limite_tubos")),
+                  limite_frascos: Number(form.get("limite_frascos")),
                   limite_solicitudes: Number(form.get("limite_solicitudes")),
                   motivo: String(form.get("motivo")).trim(),
                 }),
@@ -219,7 +225,7 @@ function ConfiguracionLimites({
             setEditar(false);
             setDatos(actualizado);
             setMensaje(
-              `Límites actualizados: ${actualizado.limite_tubos} tubos y ${actualizado.limite_solicitudes} solicitudes activas por motorista.`,
+              `Límites actualizados: ${actualizado.limite_tubos} tubos, ${cantidad(actualizado.limite_frascos)} frascos y ${actualizado.limite_solicitudes} solicitudes activas por motorista.`,
             );
             invalidarConsultasMotoristas();
           }}
@@ -233,6 +239,17 @@ function ConfiguracionLimites({
               max={2147483647}
               step={1}
               defaultValue={datos.limite_tubos}
+              required
+              error={operacion.error}
+            />
+            <Campo
+              nombre="limite_frascos"
+              etiqueta="Límite de frascos por motorista"
+              type="number"
+              min={1}
+              max={2147483647}
+              step={1}
+              defaultValue={datos.limite_frascos ?? ""}
               required
               error={operacion.error}
             />

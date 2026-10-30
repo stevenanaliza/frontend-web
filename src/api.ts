@@ -33,6 +33,7 @@ export function crearCliente(
   let renovando: Promise<void> | null = null;
   let versionSesion = 0;
   let alPerderSesion = () => {};
+  let cierreTemporal: ApiError | null = null;
   try {
     const guardado = storage?.getItem(clave);
     if (guardado) tokens = parsear(tokensSchema, JSON.parse(guardado));
@@ -64,6 +65,8 @@ export function crearCliente(
     autorizado = false,
     binario = false,
   ) {
+    if (cierreTemporal && performance.now() < cierreTemporal.reintentarEn)
+      throw cierreTemporal;
     if (!base)
       throw new ApiError(0, {
         detail: "Falta configurar la URL del backend Corporate.",
@@ -124,11 +127,18 @@ export function crearCliente(
           ? Number(retry)
           : Math.max(0, (Date.parse(retry) - Date.now()) / 1000)
         : Number(campos.segundos_espera ?? 0);
-      throw new ApiError(
+      const error = new ApiError(
         respuesta.status,
         campos,
-        Number.isFinite(espera) ? Math.ceil(espera) : 0,
+        Number.isFinite(espera) && espera > 0
+          ? Math.ceil(espera)
+          : respuesta.status === 503 &&
+              campos.codigo === "CIERRE_OPERATIVO_PENDIENTE"
+            ? 5
+            : 0,
       );
+      if (error.cierrePendiente) cierreTemporal = error;
+      throw error;
     }
     return datos;
   }
@@ -153,7 +163,11 @@ export function crearCliente(
           throw new ApiError(401);
         guardar(parsear(tokensSchema, datos));
       } catch (error) {
-        if (versionSesion === version) limpiar();
+        if (
+          versionSesion === version &&
+          !(error instanceof ApiError && error.cierrePendiente)
+        )
+          limpiar();
         throw error;
       }
     })();

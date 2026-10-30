@@ -1,5 +1,7 @@
 import { z } from "zod";
 export class ApiError extends Error {
+  readonly reintentarEn: number;
+  readonly cierrePendiente: boolean;
   constructor(
     public status: number,
     public campos: Record<string, unknown> = {},
@@ -14,15 +16,21 @@ export class ApiError extends Error {
       409: "La operación entra en conflicto con una regla vigente.",
       429: "Se alcanzó el límite de intentos. Espera antes de volver a intentar.",
     };
+    const cierrePendiente =
+      status === 503 && campos.codigo === "CIERRE_OPERATIVO_PENDIENTE";
     super(
-      status >= 500
-        ? (mensajes[status] ??
+      cierrePendiente
+        ? "El servidor está recuperando el cierre operativo. Intente nuevamente en unos segundos."
+        : status >= 500
+          ? (mensajes[status] ??
             "El servidor no pudo completar la operación. Intenta más tarde.")
-        : typeof campos.detail === "string"
-          ? campos.detail
-          : (mensajes[status] ??
-            `No se pudo completar la operación (HTTP ${status}).`),
+          : typeof campos.detail === "string"
+            ? campos.detail
+            : (mensajes[status] ??
+              `No se pudo completar la operación (HTTP ${status}).`),
     );
+    this.cierrePendiente = cierrePendiente;
+    this.reintentarEn = performance.now() + Math.max(0, espera) * 1000;
   }
 }
 export class ContratoError extends Error {

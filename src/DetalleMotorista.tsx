@@ -1,3 +1,4 @@
+import { CargaFrascos, ResumenFrascos } from "./CargaFrascos";
 import {
   Link,
   useLocation,
@@ -80,6 +81,7 @@ function Actividad({ resumen }: { resumen: Resumen }) {
             nota={`${tubos.entregas_sin_cantidad} entregas sin cantidad declarada`}
           />
         </div>
+        <ResumenFrascos frascos={resumen.frascos} />
         {(tubos.recolecciones_sin_cantidad > 0 ||
           tubos.entregas_sin_cantidad > 0) && (
           <div className="aviso compacto">
@@ -203,6 +205,7 @@ function CargaActual({ resumen }: { resumen: Resumen }) {
         </div>
       ) : null}
       <dl className="definiciones carga-definiciones">
+        <CargaFrascos carga={carga} />
         <div>
           <dt>En transporte</dt>
           <dd>{numero(carga.tubos_en_transporte)} tubos</dd>

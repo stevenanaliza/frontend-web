@@ -12,6 +12,7 @@ import { useAuth } from "./auth";
 import { api, ApiError, configuracionError } from "./api";
 import { ErrorCampo, ErrorVista } from "./componentes";
 import { rutaInicial } from "./permisos";
+import { useEsperaReintento } from "./useEsperaReintento";
 
 export function Marca({ grande = false }: { grande?: boolean }) {
   return (
@@ -29,6 +30,7 @@ export function Marca({ grande = false }: { grande?: boolean }) {
 export function Login() {
   const { perfil, iniciar } = useAuth();
   const [error, setError] = useState<unknown>(null);
+  const esperaCierre = useEsperaReintento(error);
   const [ocupado, setOcupado] = useState(false);
   const [mostrar, setMostrar] = useState(false);
   const [espera, setEspera] = useState(0);
@@ -45,7 +47,7 @@ export function Login() {
   if (perfil) return <Navigate to={rutaInicial(perfil)} replace />;
   async function enviar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (ocupado || espera) return;
+    if (ocupado || espera || esperaCierre) return;
     const campos = new FormData(event.currentTarget);
     setOcupado(true);
     setError(null);
@@ -73,8 +75,8 @@ export function Login() {
             con su historia completa.
           </h1>
           <p>
-            Revisa la actividad de tus motoristas, la carga de tubos y las
-            lecturas de temperatura desde un solo lugar.
+            Revisa la actividad de tus motoristas, la carga de tubos y frascos y
+            las lecturas de temperatura desde un solo lugar.
           </p>
           <div className="login-grafico" aria-hidden="true">
             <div className="linea-ruta" />
@@ -154,15 +156,17 @@ export function Login() {
             <ErrorCampo error={error} campo="contrasena" />
             <button
               className="boton primario login-enviar"
-              disabled={ocupado || espera > 0 || !api.configurado}
+              disabled={
+                ocupado || espera > 0 || esperaCierre > 0 || !api.configurado
+              }
             >
               {ocupado ? (
                 <LoaderCircle className="girar" size={18} aria-hidden="true" />
               ) : null}
               {ocupado
                 ? "Verificando acceso…"
-                : espera
-                  ? `Intenta de nuevo en ${espera} s`
+                : espera || esperaCierre
+                  ? `Intenta de nuevo en ${Math.max(espera, esperaCierre)} s`
                   : "Entrar al panel"}
               {!ocupado && !espera && (
                 <ArrowRight size={18} aria-hidden="true" />

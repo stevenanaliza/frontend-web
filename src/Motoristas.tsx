@@ -1,3 +1,4 @@
+import { cantidad } from "./carga";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Check } from "lucide-react";
@@ -182,9 +183,20 @@ export function Motoristas() {
                             {numero(m.limite_tubos)} tubos
                           </strong>
                           <small>
+                            {cantidad(m.frascos_comprometidos)} /{" "}
+                            {cantidad(m.limite_frascos)} frascos
+                          </small>
+                          <small>
                             {m.solicitudes_activas} / {m.limite_solicitudes}{" "}
                             solicitudes activas
                           </small>
+                          {(m.solicitudes_sin_cantidad_frascos === undefined ||
+                            m.solicitudes_sin_cantidad_frascos > 0) && (
+                            <small className="advertencia-texto">
+                              Frascos sin registrar:{" "}
+                              {cantidad(m.solicitudes_sin_cantidad_frascos)}
+                            </small>
+                          )}
                           {m.solicitudes_sin_cantidad_tubos > 0 && (
                             <small className="advertencia-texto">
                               Carga parcial: {m.solicitudes_sin_cantidad_tubos}{" "}
@@ -194,6 +206,9 @@ export function Motoristas() {
                         </td>
                         <td>
                           {numero(m.tubos_disponibles)} tubos
+                          <small>
+                            {cantidad(m.frascos_disponibles)} frascos
+                          </small>
                           <small>
                             {m.puede_recibir_solicitudes
                               ? "Puede recibir solicitudes"

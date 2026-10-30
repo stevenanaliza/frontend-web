@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { ApiError, ContratoError } from "./api";
 import type { Pagina } from "./contratos";
+import { useEsperaReintento } from "./useEsperaReintento";
 
 export const numero = (valor: number | string | null, decimales = 0) =>
   valor === null
@@ -95,6 +96,7 @@ export function ErrorVista({
   reintentar?: () => void;
 }) {
   const esApi = error instanceof ApiError;
+  const espera = useEsperaReintento(error);
   const campos =
     esApi && error.status < 500
       ? Object.entries(error.campos).filter(
@@ -135,8 +137,14 @@ export function ErrorVista({
           ))}
         </ul>
       )}
+      {espera > 0 && <p>Podrás volver a intentar en {espera} s.</p>}
       {reintentar && (
-        <button type="button" className="boton secundario" onClick={reintentar}>
+        <button
+          type="button"
+          className="boton secundario"
+          disabled={espera > 0}
+          onClick={reintentar}
+        >
           <RefreshCw size={16} aria-hidden="true" />
           Volver a intentar
         </button>

@@ -154,7 +154,11 @@ export async function cargarMonitoreo(
       return { solicitud, punto, error: false };
     } catch (error) {
       signal.throwIfAborted();
-      if (error instanceof ApiError && error.status === 401) throw error;
+      if (
+        error instanceof ApiError &&
+        (error.status === 401 || error.cierrePendiente)
+      )
+        throw error;
       // Una solicitud puede terminar o desaparecer del alcance entre las dos consultas.
       return {
         solicitud,

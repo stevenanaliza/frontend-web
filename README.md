@@ -2,7 +2,7 @@
 
 Repositorio `frontend-web`: panel en React, TypeScript y Vite que consume directamente el backend Django mediante JWT. La publicación contiene archivos estáticos; no requiere un servidor Node de sesiones ni cookies de autenticación del panel. Node y npm se utilizan para desarrollar, compilar y ejecutar las pruebas.
 
-El contrato oficial es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), actualizado a 0.42.0. El proyecto Flutter y el backend Django permanecen sin modificaciones.
+El contrato oficial es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), actualizado a 0.44.0. El proyecto Flutter y el backend Django permanecen sin modificaciones.
 
 ## Iniciar el proyecto
 
@@ -44,8 +44,8 @@ Ver [deploy/README.md](./deploy/README.md) para CORS, configuración y comprobac
 | --------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Acceso                | Correo/contraseña, recuperación al recargar, perfil, permisos, rotación JWT y cierre de sesión                    |
 | Resúmenes diarios     | Fecha operativa, filtros, paginación remota, detalle del motorista y temperaturas                                 |
-| Solicitudes           | Creación con catálogos autorizados, modalidades, artículos y tubos; agrupaciones, filtros, detalle e historial    |
-| Operaciones           | Asignar/reasignar, corregir tubos con motivo y cancelar según estado y permisos                                   |
+| Solicitudes           | Creación con catálogos autorizados, modalidades, tubos y frascos; agrupaciones, filtros, detalle e historial      |
+| Operaciones           | Asignar/reasignar, corregir carga con motivo y cancelar según estado y permisos                                   |
 | Evidencias            | Metadatos e imágenes privadas solicitadas con Bearer y object URLs temporales                                     |
 | Motoristas            | Directorio, carga actual y cupo individual efectivo; alta de perfil y motocicleta                                 |
 | Límites de motoristas | Configuración compartida por empresa en Corporate o general de Network, según alcance y permisos                  |
@@ -63,7 +63,7 @@ Se distinguen actividad del día y carga actual; cero y `null`; kilómetros medi
 
 Las respuestas se validan con Zod. Los errores por campo conservan los valores del formulario; se distinguen HTTP 400, 401, 403, 404, 409, 429 y 5xx de fallos de conexión. Ninguna operación de escritura se repite automáticamente.
 
-La creación de solicitudes consulta `opciones-creacion/` por empresa, modalidad y origen. Solo permite elegir destinos devueltos por Django; al cambiar modalidad u origen descarta el destino anterior. Los envíos especiales dependen del catálogo autorizado y usan una descripción con `destino_id: null`. La cantidad de tubos es independiente de las cantidades de los artículos. El servidor crea el traslado y decide su asignación automática; el panel muestra el resultado real.
+La creación de solicitudes consulta `opciones-creacion/` por empresa, modalidad y origen. Solo permite elegir destinos devueltos por Django; al cambiar modalidad u origen descarta el destino anterior. Los envíos especiales dependen del catálogo autorizado y usan una descripción con `destino_id: null`. Se envían `cantidad_tubos` y `cantidad_frascos` explícitamente, sin `articulos`: ambos admiten cero, pero al menos uno debe ser positivo. El servidor crea el traslado y decide su asignación automática; el panel muestra el resultado real.
 
 El contrato vigente no expone altas o edición de los datos generales de empresas, edición de sucursales ni edición de vehículos existentes. El panel ofrece la consulta de esos registros y las altas disponibles. Tampoco permite cambiar el usuario o la motocicleta de un motorista ya creado. Desde 0.41.0 se retiró la configuración individual de límites del motorista.
 
@@ -71,7 +71,19 @@ En `/limites-motoristas`, Corporate consulta y modifica la configuración de una
 
 Los límites se aplican individualmente a cada motorista: no forman un fondo compartido entre conductores. El servidor valida reducciones contra la carga comprometida. Los formularios conservan campos y valores ante 400/403/409 y nunca repiten el PATCH automáticamente. Tras guardar se muestran los valores devueltos y se refrescan las consultas montadas de empresas, motoristas, disponibles y resúmenes; al volver a una pantalla se consulta de nuevo, sin caché persistida de cupos.
 
-La migración y el despliegue externos de 0.41.0 están pendientes según el contrato recibido. Un 404 del nuevo endpoint se presenta como configuración no disponible, sin volver a la edición individual ni inventar límites. Esta adaptación queda local y no realiza operaciones de Git ni publicación.
+El contrato 0.44.0 confirma las migraciones externas anteriores de límites y almuerzo. Las dos migraciones nuevas de tubos/frascos y su publicación coordinada siguen pendientes del equipo del backend. Un 404 del nuevo endpoint se presenta como configuración no disponible, sin volver a la edición individual ni inventar límites. Esta adaptación queda local y no realiza operaciones de Git ni publicación.
+
+## Tubos y frascos · 0.44.0
+
+Los cupos son independientes. La configuración compartida incorpora `limite_frascos`, entero 1..2147483647; el valor inicial 20 lo asigna el backend y la web no lo inventa cuando falta. Listados, Monitorear y resúmenes conservan los conteos del servidor de carga comprometida, reservada, en transporte y disponible. El resumen separa frascos conocidos y operaciones sin cantidad registrada.
+
+La corrección usa `PATCH /api/v1/solicitudes/{id}/carga/` con `solicitud.asignar` y motivo. Antes de recoger permite corregir ambos conteos. Después solo se completan los desconocidos, omitiendo del PATCH las cantidades conocidas que deben conservarse. Las terminales no ofrecen corrección. La selección de disponibles consulta ambas cantidades y la carga desconocida se completa antes de asignar.
+
+Los históricos `cantidad_frascos: null` aparecen como **No registrado**, nunca como cero. Los campos nuevos ausentes durante un despliegue anterior se muestran también como no disponibles; si se reciben, se valida su tipo. Se admite la lectura anterior de artículos como historial, sin reconstruir conteos ni volver a enviarlos en un alta.
+
+## Recuperación temporal del servidor · 0.43.0
+
+El 503 con `codigo: CIERRE_OPERATIVO_PENDIENTE` muestra la preparación temporal y conserva los formularios y la sesión. Respeta `Retry-After` (cinco segundos si ese encabezado no está accesible), deshabilita el reintento durante la espera y no repite escrituras automáticamente. El cliente evita enviar otras peticiones durante ese mismo intervalo. No se crean jornadas ni se ejecutan cierres desde la web.
 
 ## Sesión JWT y contraseñas
 
@@ -79,7 +91,7 @@ React llama a `iniciar-sesion/` de Django con `correo` y `contrasena`. Guarda ju
 
 Las consultas protegidas llevan `Authorization: Bearer`. Las peticiones usan `credentials: omit`, sin autenticación por cookies. Al recargar, se vuelve a consultar `mi-perfil/`; no se confía en permisos persistidos.
 
-La renovación usa las expiraciones recibidas de Django, sustituye conjuntamente ambos tokens y coordina las peticiones concurrentes de esta pestaña con una sola renovación. Solo un GET puede repetirse una vez tras un 401. Un fallo de renovación elimina las credenciales y exige iniciar sesión. Las respuestas pendientes de una sesión anterior no pueden restaurarla ni sobrescribir un acceso nuevo.
+La renovación usa las expiraciones recibidas de Django, sustituye conjuntamente ambos tokens y coordina las peticiones concurrentes de esta pestaña con una sola renovación. Solo un GET puede repetirse una vez tras un 401. Un fallo de renovación elimina las credenciales y exige iniciar sesión, salvo el 503 temporal `CIERRE_OPERATIVO_PENDIENTE`, que conserva el par JWT para reintentar tras la espera. Las respuestas pendientes de una sesión anterior no pueden restaurarla ni sobrescribir un acceso nuevo.
 
 La sesión se conserva en la pestaña. No se ofrece una sesión compartida automática entre pestañas; Django determina la revocación de las demás sesiones y cualquier consulta posterior con credenciales revocadas exige nuevo acceso. Los JWT son accesibles al JavaScript de la aplicación, como corresponde a este cliente directo.
 
@@ -95,11 +107,11 @@ Motoristas incorpora el filtro remoto `en_almuerzo=true/false`, combinado con lo
 
 Los campos nuevos son opcionales mientras se actualiza el backend externo. Su ausencia se muestra como «Sin información de almuerzo»; si un servidor anterior ignora el filtro remoto y devuelve datos sin ese campo, se advierte que el filtro no está confirmado. No se asignan false, null o una hora ficticia.
 
-Esta web administrativa consulta el almuerzo. Iniciarlo y finalizarlo corresponde exclusivamente al motorista en su aplicación: no se agregan POST de almuerzo, cambios de estado para simular el regreso ni creación de jornadas desde el panel. El corte de las 22:00 y su zona operativa los establece Django; los errores del servidor conservan el tratamiento existente. El contrato 0.42.0 informa que la publicación, la migración externa y el mantenimiento programado en Render siguen pendientes del equipo del backend.
+Esta web administrativa consulta el almuerzo. Iniciarlo y finalizarlo corresponde exclusivamente al motorista en su aplicación: no se agregan POST de almuerzo, cambios de estado para simular el regreso ni creación de jornadas desde el panel. El corte de las 22:00 y su zona operativa los establece Django; los errores del servidor conservan el tratamiento existente. La entrega 0.44.0 confirma que la migración de almuerzo ya se aplicó externamente. El equipo del backend debe verificar la publicación de 0.42/0.43 y su mantenimiento en Render.
 
 ### Configuración del mapa
 
-La ruta `/monitorear` muestra un punto por motorista con seguimiento operativo disponible y permite abrir su carga, vehículo, solicitudes y artículos. Exige `repartidor.ver`, `solicitud.ver` y `solicitud.ver_seguimiento`, con el alcance autorizado por Django.
+La ruta `/monitorear` muestra un punto por motorista con seguimiento operativo disponible y permite abrir su carga de tubos y frascos, vehículo y solicitudes; los artículos anteriores se consultan únicamente como historial en el detalle de la solicitud. Exige `repartidor.ver`, `solicitud.ver` y `solicitud.ver_seguimiento`, con el alcance autorizado por Django.
 
 La API solo permite consultar GPS mediante solicitudes activas: `/api/v1/solicitudes/{id}/seguimiento/`. Los motoristas sin ese seguimiento permanecen en el listado sin un punto en el mapa. No se usa la ubicación de inicio de jornada ni una evidencia histórica para afirmar dónde están ahora. Se muestra la fecha de captura y se distingue una ubicación de más de dos minutos. No se dibujan recorridos ni se solicitan rutas, geocodificación o Fleet Engine.
 
@@ -151,3 +163,7 @@ npm run preview
 ```
 
 Corporate y Network mantienen dominios, bases, sesiones y configuración independientes. Se conserva la identidad Corporate, con la marca del móvil, Manrope y DM Sans y alternativas locales. Ver [revisión](./REVISION_FRONTEND.md).
+
+### Validación de 0.43.0–0.44.0
+
+71 pruebas unitarias y 53 escenarios distintos de navegador aprobados en esta adaptación, con API y mapa simulados. Se verifican alta solo tubos/solo frascos, carga vacía, conservación de históricos, regularización después de recoger, límites Corporate/Network, disponibilidad por ambos conteos, 400/409, recuperación 503 en login/perfil/consulta/escritura/GPS y diseño responsive. Compilación y formato correctos. Google Maps real queda para la prueba autorizada en Vercel. Cambios locales, sin publicación ni Git.

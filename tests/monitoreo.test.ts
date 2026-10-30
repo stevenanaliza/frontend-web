@@ -41,7 +41,14 @@ function preparar(
         url.searchParams.get("estado") === "IN_TRANSIT" ? [activa] : [],
       );
     if (url.pathname.endsWith("/seguimiento/")) {
-      if (opciones.fallo) throw new ApiError(opciones.fallo);
+      if (opciones.fallo)
+        throw new ApiError(
+          opciones.fallo,
+          opciones.fallo === 503
+            ? { codigo: "CIERRE_OPERATIVO_PENDIENTE" }
+            : {},
+          5,
+        );
       return opciones.gps ?? gps;
     }
     throw new Error("Consulta no prevista");
@@ -104,6 +111,14 @@ describe("monitoreo con GPS operativo autorizado", () => {
     const { pedir } = preparar({ fallo: 401 });
     await expect(cargarMonitoreo(pedir, signal())).rejects.toMatchObject({
       status: 401,
+    });
+  });
+  it("propaga la recuperación temporal del servidor aunque ocurra al consultar GPS", async () => {
+    const { pedir } = preparar({ fallo: 503 });
+    await expect(cargarMonitoreo(pedir, signal())).rejects.toMatchObject({
+      status: 503,
+      cierrePendiente: true,
+      espera: 5,
     });
   });
   it("no consulta GPS sin motoristas ni continúa una lectura abortada", async () => {

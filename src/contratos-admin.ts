@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cantidadSchema } from "./carga";
 import { perfilSchema, resumenSchema } from "./contratos";
 
 const contador = z.number().int().nonnegative();
@@ -136,16 +137,17 @@ export const solicitudSchema = z.object({
   prioridad: z.string(),
   modalidad: z.string(),
   estado: z.string(),
-  cantidad_tubos: contador.nullable(),
+  cantidad_tubos: cantidadSchema.nullable(),
+  cantidad_frascos: cantidadSchema.nullable().optional(),
   tipo_servicio: nombreId.extend({ codigo: z.string() }),
   origen: ubicacion,
   destino: ubicacion.nullable(),
   destino_especial: z.string().nullable(),
   creado_en: z.string(),
 });
-export const detalleSolicitudSchema = solicitudSchema.extend({
+const detalleActualSchema = solicitudSchema.extend({
   notas: z.string().nullable(),
-  articulos: z.array(
+  articulos_historicos: z.array(
     z.object({
       id: z.string(),
       tipo_articulo: z.string(),
@@ -169,6 +171,15 @@ export const detalleSolicitudSchema = solicitudSchema.extend({
   recolectada_en: z.string().nullable(),
   entregada_en: z.string().nullable(),
 });
+// Lectura compatible con el despliegue previo; ningún artículo vuelve al POST.
+export const detalleSolicitudSchema = z.preprocess((valor) => {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return valor;
+  const datos = valor as Record<string, unknown>;
+  return datos.articulos_historicos === undefined &&
+    datos.articulos !== undefined
+    ? { ...datos, articulos_historicos: datos.articulos }
+    : datos;
+}, detalleActualSchema);
 export const evidenciaSchema = z.object({
   id: z.string(),
   solicitud_id: z.string(),

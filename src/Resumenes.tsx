@@ -1,3 +1,4 @@
+import { cantidad } from "./carga";
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
@@ -218,6 +219,9 @@ export function Resumenes() {
                           Tubos<small>Recogidos / entregados conocidos</small>
                         </th>
                         <th>
+                          Frascos<small>Recogidos / entregados conocidos</small>
+                        </th>
+                        <th>
                           Temperatura<small>Promedio de recolecciones</small>
                         </th>
                         <th>
@@ -287,6 +291,22 @@ export function Resumenes() {
                                 Datos parciales · cantidades sin declarar
                               </small>
                             )}
+                          </td>
+                          <td>
+                            <strong>
+                              {cantidad(resumen.frascos?.recogidos_conocidos)} /{" "}
+                              {cantidad(resumen.frascos?.entregados_conocidos)}
+                            </strong>
+                            <small>
+                              {cantidad(
+                                resumen.frascos?.recolecciones_sin_cantidad,
+                              )}{" "}
+                              recolecciones sin cantidad
+                            </small>
+                            <small>
+                              {cantidad(resumen.frascos?.entregas_sin_cantidad)}{" "}
+                              entregas sin cantidad
+                            </small>
                           </td>
                           <td>
                             <strong>
@@ -365,8 +385,8 @@ export function Resumenes() {
         <Info size={18} aria-hidden="true" />
         <p>
           Los kilómetros corresponden a jornadas cerradas. Las cantidades
-          conocidas de tubos pueden ser parciales cuando existen históricos sin
-          declarar. Consulta el detalle para ver la carga actual.
+          conocidas de tubos y frascos pueden ser parciales cuando existen
+          históricos sin declarar. Consulta el detalle para ver la carga actual.
         </p>
       </div>
     </>

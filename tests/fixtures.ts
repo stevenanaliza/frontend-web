@@ -28,7 +28,11 @@ export const gruposSolicitante = agrupaciones[1];
 const solicitudDocumento = ejemplosSeccion(
   "### `GET /api/v1/solicitudes/{solicitud_id}/`",
 )[0];
-export const solicitud = { ...solicitudDocumento, cantidad_tubos: null };
+export const solicitud = {
+  ...solicitudDocumento,
+  cantidad_tubos: null,
+  cantidad_frascos: null,
+};
 export const usuario = ejemplosSeccion("### `GET /api/v1/usuarios/`")[0];
 export const historialRoles = ejemplosSeccion(
   "### `GET /api/v1/usuarios/{usuario_id}/roles/`",
@@ -37,7 +41,16 @@ export const sucursal = ejemplosSeccion(
   "### `GET /api/v1/organizaciones/empresas/{empresa_id}/sucursales/`",
 )[0];
 const motoristaDocumento = ejemplosSeccion("### Motoristas")[2].resultados[0];
-export const motorista = { ...motoristaDocumento, ...resumen.carga_actual };
+export const motorista = {
+  ...motoristaDocumento,
+  ...resumen.carga_actual,
+  limite_frascos: 20,
+  frascos_comprometidos: 9,
+  frascos_en_transporte: 4,
+  frascos_reservados: 5,
+  frascos_disponibles: 11,
+  solicitudes_sin_cantidad_frascos: 0,
+};
 const evidenciaDocumento = ejemplosSeccion("### Registrar evidencia")[0];
 export const evidencia = {
   ...evidenciaDocumento,

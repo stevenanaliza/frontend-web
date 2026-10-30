@@ -143,7 +143,7 @@ async function preparar(
         ? responder(
             {
               cantidad_tubos: ["La cantidad no está disponible."],
-              articulos: [{ tipo_articulo: ["Revisa el tipo de artículo."] }],
+              cantidad_frascos: ["Revisa la cantidad de frascos."],
             },
             400,
           )
@@ -151,6 +151,8 @@ async function preparar(
             {
               ...solicitud,
               cantidad_tubos: cuerpo.cantidad_tubos,
+              cantidad_frascos: cuerpo.cantidad_frascos,
+              articulos_historicos: [],
               estado: "ASSIGNED",
             },
             201,
@@ -218,12 +220,9 @@ async function completarSolicitud(page: Page, especial = false) {
       .selectOption(opcionesBase.destinos[0].ubicacion.id);
   await page.getByLabel("Tipo de servicio").selectOption(servicio.id);
   await page.getByLabel("Cantidad de tubos").fill("3");
-  await page.getByLabel("Tipo de artículo 1", { exact: true }).fill("Muestras");
-  await page
-    .getByLabel("Cantidad del artículo 1", { exact: true })
-    .fill("2.50");
+  await page.getByLabel("Cantidad de frascos").fill("2");
 }
-test("crea solicitud con catálogos autorizados, artículos y tubos independientes; muestra asignación", async ({
+test("crea solicitud con catálogos autorizados, frascos y tubos independientes; muestra asignación", async ({
   page,
 }) => {
   const peticiones = await preparar(page);
@@ -238,10 +237,9 @@ test("crea solicitud con catálogos autorizados, artículos y tubos independient
       .getByLabel("Modalidad")
       .getByRole("option", { name: "Envío especial" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Añadir artículo" }).click();
-  await page
-    .getByLabel("Tipo de artículo 2", { exact: true })
-    .fill("Documentos");
+  await expect(
+    page.getByRole("button", { name: "Añadir artículo" }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Crear solicitud", exact: true })
     .click();
@@ -259,10 +257,8 @@ test("crea solicitud con catálogos autorizados, artículos y tubos independient
     sucursal_id: opcionesBase.origenes[0].sucursal_id,
     destino_id: opcionesBase.destinos[0].ubicacion.id,
   });
-  expect(envios[0].cuerpo.articulos.map((a: any) => a.cantidad)).toEqual([
-    "2.50",
-    "1",
-  ]);
+  expect(envios[0].cuerpo.cantidad_frascos).toBe(2);
+  expect(envios[0].cuerpo).not.toHaveProperty("articulos");
   expect(envios[0].bearer).toBe("Bearer acceso-prueba");
 });
 test("conserva los datos y errores por campo de una creación rechazada sin repetir POST", async ({
@@ -276,12 +272,10 @@ test("conserva los datos y errores por campo de una creación rechazada sin repe
   await expect(page.locator("#cantidad_tubos-error")).toContainText(
     "La cantidad no está disponible.",
   );
-  await expect(page.locator("#articulos-1-tipo_articulo-error")).toContainText(
-    "Revisa el tipo de artículo.",
+  await expect(page.locator("#cantidad_frascos-error")).toContainText(
+    "Revisa la cantidad de frascos.",
   );
-  await expect(page.locator("#articulos-1-tipo_articulo")).toHaveValue(
-    "Muestras",
-  );
+  await expect(page.getByLabel("Cantidad de frascos")).toHaveValue("2");
   await expect(page.getByLabel("Cantidad de tubos")).toHaveValue("3");
   expect(
     peticiones.filter(

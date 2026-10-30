@@ -1,3 +1,4 @@
+import { useEsperaReintento } from "./useEsperaReintento";
 import {
   lazy,
   Suspense,
@@ -404,6 +405,7 @@ function NoEncontrado() {
 }
 export function App() {
   const { cargando, error, recuperar, perfil } = useAuth();
+  const espera = useEsperaReintento(error);
   if (cargando)
     return (
       <main className="pantalla-carga">
@@ -422,7 +424,11 @@ export function App() {
           contraseña.
         </p>
         <ErrorVista error={error} />
-        <button className="boton primario" onClick={() => void recuperar()}>
+        <button
+          className="boton primario"
+          disabled={espera > 0}
+          onClick={() => void recuperar()}
+        >
           Reintentar perfil
         </button>
         <button className="boton secundario" onClick={() => api.limpiar()}>

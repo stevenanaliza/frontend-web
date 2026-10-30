@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cargaFrascosSchema, conteosResumenSchema } from "./carga";
 
 const decimal = z
   .string()
@@ -73,6 +74,7 @@ export const resumenSchema = z.object({
     recolecciones_sin_cantidad: contador,
     entregas_sin_cantidad: contador,
   }),
+  frascos: conteosResumenSchema.optional(),
   kilometraje: z.object({
     criterio: z.literal("CIERRE_JORNADA"),
     jornadas_cerradas: contador,
@@ -92,7 +94,7 @@ export const resumenSchema = z.object({
     promedio_c: decimal,
     ultimas_lecturas: z.array(lecturaSchema),
   }),
-  carga_actual: z.object({
+  carga_actual: cargaFrascosSchema.extend({
     tubos_comprometidos: contador,
     tubos_en_transporte: contador,
     solicitudes_sin_cantidad_tubos: contador,

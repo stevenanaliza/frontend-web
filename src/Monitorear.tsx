@@ -1,3 +1,5 @@
+import { cantidad } from "./carga";
+import { CargaFrascos } from "./CargaFrascos";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -67,7 +69,7 @@ function FichaMotorista({
           return datos;
         }),
       ),
-    `monitor-articulos:${m.id}:${ids}:${actualizado}`,
+    `monitor-carga:${m.id}:${ids}:${actualizado}`,
   );
   return (
     <Panel
@@ -114,6 +116,7 @@ function FichaMotorista({
           </p>
         )}
         <dl className="monitor-datos">
+          <CargaFrascos carga={m} />
           <div>
             <dt>Solicitudes activas</dt>
             <dd>
@@ -163,7 +166,7 @@ function FichaMotorista({
             </dd>
           </div>
         </dl>
-        <h3>Solicitudes y artículos</h3>
+        <h3>Solicitudes y carga</h3>
         <p className="ayuda-form">
           La carga total la calcula el servidor. Este listado incluye las
           solicitudes activas dentro de tu alcance.
@@ -172,7 +175,7 @@ function FichaMotorista({
           <p>No hay solicitudes activas visibles.</p>
         ) : (
           <>
-            {detalle.cargando && <Cargando texto="Consultando artículos…" />}
+            {detalle.cargando && <Cargando texto="Consultando solicitudes…" />}
             {detalle.error != null && (
               <ErrorVista error={detalle.error} reintentar={detalle.recargar} />
             )}
@@ -186,10 +189,8 @@ function FichaMotorista({
                       {estadosSolicitud[s.estado] ?? s.estado}
                     </span>
                     <p>
-                      {s.tipo_servicio.nombre} ·{" "}
-                      {s.cantidad_tubos === null
-                        ? "Tubos sin declarar"
-                        : `${numero(s.cantidad_tubos)} tubos`}
+                      {s.tipo_servicio.nombre} · {cantidad(s.cantidad_tubos)}{" "}
+                      tubos · {cantidad(s.cantidad_frascos)} frascos
                     </p>
                     <p>
                       Origen: {s.origen.nombre}
@@ -199,28 +200,11 @@ function FichaMotorista({
                         s.destino_especial ??
                         "Sin destino declarado"}
                     </p>
-                    {completa &&
-                      (completa.articulos.length ? (
-                        <ul>
-                          {completa.articulos.map((a) => (
-                            <li key={a.id}>
-                              <strong>
-                                {a.cantidad} × {a.tipo_articulo}
-                              </strong>
-                              {a.descripcion && <p>{a.descripcion}</p>}
-                              {a.codigo_referencia && (
-                                <p>Referencia: {a.codigo_referencia}</p>
-                              )}
-                              {a.condicion_transporte && (
-                                <p>Transporte: {a.condicion_transporte}</p>
-                              )}
-                              {a.notas && <p>{a.notas}</p>}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p>Sin artículos declarados.</p>
-                      ))}
+                    {completa && completa.articulos_historicos.length > 0 && (
+                      <Link to={`/solicitudes/${s.id}`}>
+                        Ver artículos históricos en el detalle
+                      </Link>
+                    )}
                   </li>
                 );
               })}
@@ -468,7 +452,9 @@ export default function Monitorear() {
                                   · {numero(r.motorista.solicitudes_activas)}{" "}
                                   solicitudes ·{" "}
                                   {numero(r.motorista.tubos_en_transporte)}{" "}
-                                  tubos en transporte
+                                  tubos en transporte ·{" "}
+                                  {cantidad(r.motorista.frascos_en_transporte)}{" "}
+                                  frascos en transporte
                                 </small>
                                 <small>
                                   {r.errorGps
@@ -515,7 +501,7 @@ export default function Monitorear() {
                       <h3>Selecciona un motorista</h3>
                       <p>
                         Toca un punto del mapa o un motorista del listado para
-                        consultar sus solicitudes, tubos, artículos y vehículo.
+                        consultar sus solicitudes, tubos, frascos y vehículo.
                       </p>
                     </div>
                   </Panel>

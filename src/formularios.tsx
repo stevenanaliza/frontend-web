@@ -5,6 +5,7 @@ import { api, consulta, parsear } from "./api";
 import { paginaSchema } from "./contratos";
 import { empresaSchema, sucursalSchema } from "./contratos-admin";
 import { useAuth } from "./auth";
+import { useEsperaReintento } from "./useEsperaReintento";
 import { Campo, ErroresFormulario, uuidPattern } from "./admin-comunes";
 import {
   Cargando,
@@ -51,8 +52,10 @@ export function Formulario({
   textoGuardar?: string;
   aviso?: ReactNode;
 }) {
+  const espera = useEsperaReintento(operacion.error);
   function guardar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (espera) return;
     const datos = new FormData(event.currentTarget);
     void operacion.ejecutar(() => enviar(datos));
   }
@@ -78,8 +81,15 @@ export function Formulario({
               Cancelar
             </button>
           )}
-          <button className="boton primario" disabled={operacion.ocupado}>
-            {operacion.ocupado ? "Guardando…" : textoGuardar}
+          <button
+            className="boton primario"
+            disabled={operacion.ocupado || espera > 0}
+          >
+            {operacion.ocupado
+              ? "Guardando…"
+              : espera
+                ? `Intenta de nuevo en ${espera} s`
+                : textoGuardar}
           </button>
         </div>
       </form>

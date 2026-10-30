@@ -22,7 +22,7 @@ El cliente único es `src/api.ts`. No existe un adaptador de sesiones del panel,
 
 La clave `vitago:corporate:<origen-backend>:sesion` en `sessionStorage` contiene únicamente los campos validados de `tokensSchema`. No contiene contraseña, perfil ni permisos. `localStorage` no almacena tokens. Si el almacenamiento está bloqueado, se conserva solo en memoria.
 
-Las expiraciones recibidas coordinan la renovación; no hay duraciones JWT fijadas en el frontend. Las peticiones concurrentes de la pestaña comparten una renovación. GET puede repetirse una vez después de un 401; POST, PATCH y DELETE no se repiten automáticamente. Un 403 o 409 conserva los errores del backend y no dispara renovación. Cualquier fallo de renovación elimina las credenciales.
+Las expiraciones recibidas coordinan la renovación; no hay duraciones JWT fijadas en el frontend. Las peticiones concurrentes de la pestaña comparten una renovación. GET puede repetirse una vez después de un 401; POST, PATCH y DELETE no se repiten automáticamente. Un 403 o 409 conserva los errores del backend y no dispara renovación. Los fallos de renovación eliminan las credenciales, salvo el 503 identificado de recuperación operativa, que conserva la sesión durante Retry-After.
 
 El cliente rechaza rutas ajenas y redirecciones. Las imágenes privadas se descargan con Bearer, se valida el MIME y se liberan los object URLs al dejar de utilizarlos. La salida local invalida también las respuestas y renovaciones pendientes, para que no restauren una sesión finalizada ni borren un acceso nuevo.
 
@@ -30,7 +30,7 @@ El cliente rechaza rutas ajenas y redirecciones. Las imágenes privadas se desca
 
 Se verificaron por lectura los endpoints de organizaciones, ubicaciones y flota, además de `SerializadorCreacionSolicitud` y `SerializadorArticuloCreacion`. No se modificó Django.
 
-- Las solicitudes nuevas usan `opciones-creacion/`, `tipos-servicio/` y `POST /api/v1/solicitudes/`. `cantidad_tubos` es obligatoria e independiente de `articulos[].cantidad`. El origen y destino enviados son IDs de ubicación, mientras que `sucursal_id` procede del origen autorizado. Los especiales solo se ofrecen cuando Django los incluye y autoriza; no se envía un destino registrado para ellos.
+- Las solicitudes nuevas usan `opciones-creacion/`, `tipos-servicio/` y `POST /api/v1/solicitudes/`. Desde 0.44.0 se envían `cantidad_tubos` y `cantidad_frascos`, ambos enteros no negativos y con carga no vacía; no se envía `articulos`. El origen y destino enviados son IDs de ubicación, mientras que `sucursal_id` procede del origen autorizado. Los especiales solo se ofrecen cuando Django los incluye y autoriza; no se envía un destino registrado para ellos.
 - La ubicación manual usa `origen: REGISTRADA_USUARIO`, país de la empresa cuando se puede consultar, tipo del catálogo y coordenadas con seis decimales. Su alta requiere `ubicacion.crear`. La aprobación requiere `ubicacion.aprobar` y llama a la ruta con `ubicacion.id`, no con el ID de la relación. El estado devuelto por Django determina la aprobación efectiva.
 - Las empresas exponen GET de lista y detalle; las sucursales admiten GET y POST; los vehículos admiten GET y POST. No existen POST/PATCH de datos generales de empresa ni PATCH de sucursales o vehículos en las vistas actuales. El permiso `empresa.administrar` por sí solo no añade esas operaciones HTTP; 0.41.0 sí ofrece el subrecurso de límites de motoristas.
 - El registro de motocicletas es accesible desde su módulo y desde el alta de motorista. La capacidad operativa sigue calculándose en Django; no se envía `capacidad_carga_kg`.
@@ -55,10 +55,22 @@ Los schemas conservan `en_almuerzo` y `almuerzo_iniciado_en` como booleano y fec
 
 El panel no llama a `jornadas/{id}/almuerzo/iniciar/` o `finalizar/`: están reservados al propietario de la jornada. Tampoco simula regreso mediante PATCH operativo ni crea jornadas adicionales. Las reglas de corte, disponibilidad y asignación corresponden al servidor; no se ejecutan cierres desde el reloj de la web. No se cambian permisos ni roles.
 
-El contrato informa que 0.42.0 requiere publicación, migración externa `jornadas.0004_horario_diario_almuerzos` y mantenimiento en Render, todavía pendientes. Estas tareas permanecen fuera de esta adaptación del frontend.
+La entrega del 30 de octubre confirma la aplicación externa de `jornadas.0004_horario_diario_almuerzos`; se actualiza el diagnóstico anterior. La publicación y el mantenimiento del servidor se verifican por separado por el equipo del backend.
 
 ## Publicación estática
 
 La salida es `dist/`, servida por Vercel. Node se utiliza como herramienta de compilación y pruebas, sin proceso del panel en producción. Los errores de CORS solo pueden corregirse autorizando el origen del panel en el backend; el frontend no agrega permisos CORS ficticios.
 
 El proxy opcional de Vite funciona únicamente durante el desarrollo local. Reenvía peticiones y no gestiona sesiones. La configuración publicada siempre consulta directamente Django.
+
+## Tubos/frascos y recuperación · 0.43.0–0.44.0 · 2026-10-30
+
+- POST de solicitudes: dos conteos explícitos 0..2147483647, al menos uno positivo. Sin formulario ni payload de artículos. La respuesta normal mantiene la asignación decidida por Django.
+- Detalle: `articulos_historicos` de solo lectura, conservando referencia, condición y notas. La lectura antigua `articulos` se acepta como historial durante la transición, nunca como conteos ni entrada de creación.
+- Corrección: PATCH `/solicitudes/{id}/carga/`, permiso `solicitud.asignar`, motivo obligatorio. Después de recoger solo se ofrecen cantidades desconocidas; las conocidas se omiten y se conservan. Las terminales no ofrecen cambios. No se usa la ruta obsoleta de cantidad-tubos.
+- Disponibles: query de tubos y frascos, incluidos ceros explícitos. No se ofrecen asignaciones con una carga sin registrar. La validación definitiva de cupos, GPS y alcance sigue en Django.
+- Límites: se incorpora `limite_frascos` al mismo GET/PATCH compartido, permisos y alcance EMPRESA/RED existentes. No se agregan límites al perfil individual. Campos nuevos de lectura opcionales por despliegue pendiente, sin valores por defecto.
+- Motoristas, Monitorear y resúmenes: conservan campos de frascos independientes de tubos. Los históricos null y la ausencia de campos se muestran como «No registrado». Los resúmenes muestran conocidos y operaciones sin cantidad por separado.
+- 503 `CIERRE_OPERATIVO_PENDIENTE`: mensaje de preparación, plazo monotónico de Retry-After, reintento manual después de la espera, bloqueo temporal compartido de peticiones y conservación de JWT ante la renovación temporalmente indisponible. No se repiten POST/PATCH automáticamente.
+
+La entrega oficial informa que `organizaciones.0004_tubos_frascos_sin_articulos` y `solicitudes.0009_tubos_frascos_sin_articulos` solo están aplicadas localmente en el backend. No se verifican ni ejecutan migraciones externas desde este proyecto. La publicación coordinada de 0.43/0.44 en Render y Vercel queda pendiente. Pruebas de esta adaptación con respuestas simuladas, sin consultas ni escrituras contra Render o Google.

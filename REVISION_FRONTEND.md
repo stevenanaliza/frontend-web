@@ -108,3 +108,21 @@ La adaptación es de consulta administrativa: no añade controles ni POST para i
 Validación: 59 pruebas unitarias y 18 escenarios de navegador de almuerzos y regresión de administración/monitoreo aprobados; compilación y formato correctos. Se verifican filtros, empresa/paginación, pausa genérica, respuesta anterior al despliegue, actualización del estado y ausencia de escrituras de almuerzo. Capturas de escritorio, tableta y móvil inspeccionadas en `artifacts/almuerzos/`. API y mapas simulados, sin consumos de Google ni cambios en datos operativos.
 
 Cambios locales, sin Git, publicación ni modificaciones de backend, móvil, entornos o credenciales.
+
+## Tubos/frascos y recuperación · contrato 0.43.0–0.44.0 · 2026-10-30
+
+Se incorporó el contrato adjunto completo de 0.44.0. El alta declara tubos y frascos independientes, ambos 0..2147483647 y al menos uno positivo. Se retiran controles y payload de artículos, incluido el manejo de errores por índice. La validación conserva los errores por cantidad y los valores ante HTTP 400/409. No se habilita el alta pendiente de Network.
+
+Los listados y detalles de solicitudes, el directorio de motoristas, los resúmenes y Monitorear muestran frascos por separado. La carga y los cupos se leen de Django sin calcular disponibilidad en el cliente. Los acumulados de reportes no se limitan al máximo de una solicitud. Null histórico y campos nuevos ausentes durante el despliegue muestran «No registrado», sin sustituirlos por cero ni convertir artículos antiguos a recipientes. Los artículos anteriores quedan en una tabla de historia con referencia, condición y notas; desde Monitorear se enlaza a ese detalle.
+
+La configuración EMPRESA/RED incorpora límite de frascos con el mismo alcance y permisos existentes. No se configura desde perfiles individuales. El PATCH de corrección usa `/carga/`, motivo y las cantidades editables: tras la recolección solo permite completar desconocidos y omite los valores conocidos; las terminales no ofrecen modificaciones. Una carga desconocida debe completarse antes de asignar, y disponibles recibe ambos conteos, incluso ceros.
+
+El 503 `CIERRE_OPERATIVO_PENDIENTE` muestra preparación temporal y respeta Retry-After con un plazo monotónico, conservando datos y JWT, también durante renovación. No se repiten escrituras. Durante la espera el cliente bloquea nuevas peticiones y los controles de reintento quedan deshabilitados. En Monitorear este 503 se propaga aunque ocurra al leer GPS, retira los puntos y permite reintentar después; no se confunde con una ubicación ausente.
+
+La entrega nueva confirma que el backend ya aplicó externamente la migración de almuerzo 0004. Las dos migraciones de tubos/frascos siguen pendientes externamente según el documento, junto con publicación coordinada del backend 0.43/0.44 y frontend. No se realizan esas operaciones desde este trabajo.
+
+Las capturas de alta, límites, directorio y resumen están en `artifacts/carga/`, a 320, 820 y 1440 píxeles. Se inspeccionaron teléfono, tableta y escritorio y se comprobó ausencia de desbordamiento del documento. Las pruebas usan API y mapas simulados; Google Maps real y la API de Render no se consultan.
+
+Compilación TypeScript/Vite correcta; aviso no bloqueante de Vite por chunk principal de 501.70 kB (145.41 kB gzip). Cambios locales del frontend web, sin publicación, operaciones Git, cambios de backend/móvil ni modificaciones de entorno o credenciales.
+
+Validación final: **71 pruebas unitarias y 53 escenarios distintos de navegador aprobados** en las ejecuciones de administración, alta, carga/503, asignación, límites compartidos y monitoreo. Las dos pruebas nuevas de alta se corrigieron para localizar los controles por rol; los errores de campo se localizan sin exigir que desaparezca su texto del nombre accesible. La revisión del mapa usa los conteos actuales y consulta artículos como historial. No se ejecutó la comprobación opcional de Google Maps real. Compilación y formato correctos.

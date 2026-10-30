@@ -47,6 +47,7 @@ const primera = {
   ...solicitud,
   estado: "IN_TRANSIT",
   cantidad_tubos: 3,
+  cantidad_frascos: 2,
   repartidor_asignado_id: motorista.id,
 };
 const segunda = {
@@ -126,7 +127,13 @@ export async function prepararMonitoreo(page: Page, conPermiso = true) {
       url.pathname.includes(`/${s.id}/`),
     );
     if (actual && url.pathname.endsWith("/seguimiento/")) {
-      if (control.errorGps) return enviar({}, control.errorGps);
+      if (control.errorGps)
+        return enviar(
+          control.errorGps === 503
+            ? { codigo: "CIERRE_OPERATIVO_PENDIENTE" }
+            : {},
+          control.errorGps,
+        );
       return enviar({
         ...ejemploGps,
         solicitud_id: actual.id,
@@ -151,7 +158,7 @@ export async function prepararMonitoreo(page: Page, conPermiso = true) {
     if (actual && url.pathname === `/api/v1/solicitudes/${actual.id}/`)
       return enviar({
         ...actual,
-        articulos: [
+        articulos_historicos: [
           {
             id: "55555555-5555-4555-8555-555555555555",
             tipo_articulo: "Contenedor de prueba",

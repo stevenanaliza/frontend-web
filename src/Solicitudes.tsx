@@ -1,3 +1,4 @@
+import { cantidad } from "./carga";
 import {
   Link,
   useLocation,
@@ -313,6 +314,7 @@ function SolicitudesGrupo({
                     <th>Creada por</th>
                     <th>Recorrido</th>
                     <th>Tubos</th>
+                    <th>Frascos</th>
                     <th>Estado</th>
                     <th>Consulta</th>
                   </tr>
@@ -336,11 +338,8 @@ function SolicitudesGrupo({
                             "Sin declarar"}
                         </small>
                       </td>
-                      <td>
-                        {s.cantidad_tubos === null
-                          ? "Sin declarar"
-                          : numero(s.cantidad_tubos)}
-                      </td>
+                      <td>{cantidad(s.cantidad_tubos)}</td>
+                      <td>{cantidad(s.cantidad_frascos)}</td>
                       <td>
                         <Etiqueta
                           tono={
@@ -441,11 +440,11 @@ export function DetalleSolicitud() {
                 </div>
                 <div>
                   <dt>Cantidad de tubos</dt>
-                  <dd>
-                    {datos.cantidad_tubos === null
-                      ? "Sin declarar"
-                      : numero(datos.cantidad_tubos)}
-                  </dd>
+                  <dd>{cantidad(datos.cantidad_tubos)}</dd>
+                </div>
+                <div>
+                  <dt>Cantidad de frascos</dt>
+                  <dd>{cantidad(datos.cantidad_frascos)}</dd>
                 </div>
                 <div>
                   <dt>Tipo de servicio</dt>
@@ -477,11 +476,11 @@ export function DetalleSolicitud() {
                 </div>
               </dl>
             </Panel>
-            <Panel titulo="Artículos declarados" className="separacion-panel">
+            <Panel titulo="Artículos históricos" className="separacion-panel">
               <div
                 className="tabla-scroll"
                 role="region"
-                aria-label="Artículos declarados"
+                aria-label="Tabla de artículos históricos"
                 tabIndex={0}
               >
                 <table>
@@ -493,11 +492,13 @@ export function DetalleSolicitud() {
                     </tr>
                   </thead>
                   <tbody>
-                    {datos.articulos.map((a) => (
+                    {datos.articulos_historicos.map((a) => (
                       <tr key={a.id}>
                         <td>
                           {a.tipo_articulo}
                           <small>{a.descripcion}</small>
+                          <small>{a.codigo_referencia}</small>
+                          <small>{a.notas}</small>
                         </td>
                         <td>{a.cantidad}</td>
                         <td>{a.condicion_transporte ?? "Sin declarar"}</td>
@@ -505,13 +506,13 @@ export function DetalleSolicitud() {
                     ))}
                   </tbody>
                 </table>
-                {datos.articulos.length === 0 && (
-                  <p className="panel-nota">Sin artículos descriptivos.</p>
+                {datos.articulos_historicos.length === 0 && (
+                  <p className="panel-nota">Sin artículos históricos.</p>
                 )}
               </div>
               <p className="panel-nota">
-                La cantidad descriptiva de artículos no se suma a la cantidad
-                operativa de tubos.
+                Contenido histórico de solo lectura. No determina los conteos
+                actuales de tubos o frascos.
               </p>
             </Panel>
             {perfil?.permisos.includes("evidencia.ver") && (

@@ -71,6 +71,7 @@ async function preparar(
     estado: "PENDING",
     repartidor_asignado_id: null,
     cantidad_tubos: 3,
+    cantidad_frascos: 2,
   };
   let creada = false;
   const pagina = (resultados: unknown[]) => ({
@@ -204,8 +205,8 @@ async function preparar(
       };
       return responder(detalle, 201);
     }
-    if (ruta.endsWith("/cantidad-tubos/")) {
-      detalle = { ...detalle, cantidad_tubos: cuerpo.cantidad_tubos };
+    if (ruta.endsWith("/carga/")) {
+      detalle = { ...detalle, ...cuerpo };
       return responder(detalle);
     }
     if (ruta.endsWith("/transiciones/")) {
@@ -388,7 +389,7 @@ test("alta de motorista selecciona usuario con rol y motocicleta de su empresa",
     vehiculo_id: moto.id,
   });
 });
-test("asigna motorista por perfil y filtra disponibles por tubos; corrige y cancela", async ({
+test("asigna motorista por perfil y filtra disponibles por tubos y frascos; corrige y cancela", async ({
   page,
 }) => {
   const peticiones = await preparar(page);
@@ -397,7 +398,7 @@ test("asigna motorista por perfil y filtra disponibles por tubos; corrige y canc
   await page
     .getByRole("button", { name: "Asignar motorista", exact: true })
     .click();
-  await page.getByRole("radio", { name: /tubos disponibles/ }).check();
+  await page.getByRole("radio", { name: /frascos disponibles/ }).check();
   await page
     .getByLabel("Motivo", { exact: true })
     .fill("Asignación confirmada");
@@ -411,15 +412,18 @@ test("asigna motorista por perfil y filtra disponibles por tubos; corrige y canc
       ?.query.get("cantidad_tubos"),
   ).toBe("3");
   expect(
+    peticiones
+      .find((p) => p.ruta.endsWith("/disponibles/"))
+      ?.query.get("cantidad_frascos"),
+  ).toBe("2");
+  expect(
     peticiones.find((p) => p.ruta.endsWith("/asignaciones/"))?.cuerpo
       .repartidor_id,
   ).toBe(motorista.id);
-  await page
-    .getByRole("button", { name: "Corregir cantidad de tubos" })
-    .click();
+  await page.getByRole("button", { name: "Corregir carga" }).click();
   await page.getByLabel("Cantidad de tubos", { exact: true }).fill("4");
   await page.getByLabel("Motivo", { exact: true }).fill("Conteo confirmado");
-  await page.getByRole("button", { name: "Guardar cantidad de tubos" }).click();
+  await page.getByRole("button", { name: "Guardar carga" }).click();
   await expect(
     page.getByRole("region", { name: "Información de la solicitud" }),
   ).toContainText("4");
@@ -447,7 +451,7 @@ test("un 409 de asignación conserva motivo y no repite la operación", async ({
   await page
     .getByRole("button", { name: "Asignar motorista", exact: true })
     .click();
-  await page.getByRole("radio", { name: /tubos disponibles/ }).check();
+  await page.getByRole("radio", { name: /frascos disponibles/ }).check();
   await page
     .getByLabel("Motivo", { exact: true })
     .fill("Reasignación revisada");

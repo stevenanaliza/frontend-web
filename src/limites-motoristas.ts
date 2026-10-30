@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Perfil } from "./contratos";
 
 const limites = {
+  limite_frascos: z.number().int().min(1).max(2147483647).optional(),
   limite_tubos: z.number().int().min(1).max(2147483647),
   limite_solicitudes: z.number().int().min(1).max(5),
 };

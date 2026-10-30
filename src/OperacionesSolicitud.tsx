@@ -3,6 +3,7 @@ import type { z } from "zod";
 import { useAuth } from "./auth";
 import { api, ApiError, parsear } from "./api";
 import { detalleSolicitudSchema, motoristaSchema } from "./contratos-admin";
+import { cantidad, validarCarga } from "./carga";
 import { Campo } from "./admin-comunes";
 import { Formulario, SelectorRemoto, useOperacion } from "./formularios";
 
@@ -28,22 +29,31 @@ export function OperacionesSolicitud({
     "GOING_TO_PICKUP",
     "AT_PICKUP",
   ].includes(solicitud.estado);
+  const cargaConocida =
+    solicitud.cantidad_tubos !== null && solicitud.cantidad_frascos != null;
   const asignar =
+    cargaConocida &&
     ["PENDING", "ASSIGNED"].includes(solicitud.estado) &&
     perfil?.permisos.includes(
       solicitud.repartidor_asignado_id
         ? "solicitud.reasignar"
         : "solicitud.asignar",
     );
-  const tubos =
+  const carga =
     !terminal &&
-    (antesRecoger || solicitud.cantidad_tubos === null) &&
+    (antesRecoger || !cargaConocida) &&
     perfil?.permisos.includes("solicitud.asignar");
   const cancelar =
     antesRecoger && perfil?.permisos.includes("solicitud.cancelar");
   return (
     <>
-      {(asignar || tubos || cancelar) && (
+      {!terminal && !cargaConocida && (
+        <p className="aviso" role="status">
+          Completa las cantidades no registradas antes de asignar un motorista.
+          Los valores desconocidos no equivalen a cero.
+        </p>
+      )}
+      {(asignar || carga || cancelar) && (
         <div className="acciones separacion-panel">
           {asignar && (
             <button
@@ -55,14 +65,12 @@ export function OperacionesSolicitud({
                 : "Asignar motorista"}
             </button>
           )}
-          {tubos && (
+          {carga && (
             <button
               className="boton secundario"
-              onClick={() => setAccion("tubos")}
+              onClick={() => setAccion("carga")}
             >
-              {solicitud.cantidad_tubos === null
-                ? "Declarar cantidad de tubos"
-                : "Corregir cantidad de tubos"}
+              {!cargaConocida ? "Completar carga" : "Corregir carga"}
             </button>
           )}
           {cancelar && (
@@ -108,8 +116,8 @@ function Operacion({
       ? solicitud.repartidor_asignado_id
         ? "Reasignar motorista"
         : "Asignar motorista"
-      : accion === "tubos"
-        ? "Actualizar cantidad de tubos"
+      : accion === "carga"
+        ? "Actualizar carga"
         : "Cancelar solicitud";
   return (
     <Formulario
@@ -121,7 +129,7 @@ function Operacion({
           ? "Confirmar cancelación"
           : accion === "asignar"
             ? "Confirmar asignación"
-            : "Guardar cantidad de tubos"
+            : "Guardar carga"
       }
       enviar={async (datos) => {
         const motivo = String(datos.get("motivo")).trim();
@@ -139,10 +147,15 @@ function Operacion({
             });
           ruta += "asignaciones/";
           cuerpo.repartidor_id = motorista;
-        } else if (accion === "tubos") {
-          ruta += "cantidad-tubos/";
+        } else if (accion === "carga") {
+          ruta += "carga/";
           metodo = "PATCH";
-          cuerpo.cantidad_tubos = Number(datos.get("cantidad_tubos"));
+          const cantidades = validarCarga(
+            Number(datos.get("cantidad_tubos") ?? solicitud.cantidad_tubos),
+            Number(datos.get("cantidad_frascos") ?? solicitud.cantidad_frascos),
+          );
+          for (const campo of ["cantidad_tubos", "cantidad_frascos"] as const)
+            if (datos.has(campo)) cuerpo[campo] = cantidades[campo];
         } else {
           ruta += "transiciones/";
           cuerpo.estado_destino = "CANCELLED";
@@ -169,16 +182,15 @@ function Operacion({
             schema={motoristaSchema}
             filtros={{
               empresa_id: solicitud.empresa_id,
-              ...(solicitud.cantidad_tubos === null
-                ? {}
-                : { cantidad_tubos: solicitud.cantidad_tubos }),
+              cantidad_tubos: solicitud.cantidad_tubos!,
+              cantidad_frascos: solicitud.cantidad_frascos!,
             }}
             nombre="repartidor_id"
             etiqueta="Motoristas disponibles"
             valor={motorista}
             cambiar={(id) => setMotorista(id)}
             describir={(m) =>
-              `${m.usuario.nombres} ${m.usuario.apellidos} · ${m.tubos_disponibles} tubos disponibles`
+              `${m.usuario.nombres} ${m.usuario.apellidos} · ${m.tubos_disponibles} tubos y ${cantidad(m.frascos_disponibles)} frascos disponibles`
             }
             permitido={(m) =>
               m.puede_recibir_solicitudes &&
@@ -189,18 +201,44 @@ function Operacion({
           />
         </>
       )}
-      {accion === "tubos" && (
-        <Campo
-          nombre="cantidad_tubos"
-          etiqueta="Cantidad de tubos"
-          type="number"
-          min={1}
-          max={2147483647}
-          step={1}
-          defaultValue={solicitud.cantidad_tubos ?? ""}
-          required
-          error={operacion.error}
-        />
+      {accion === "carga" && (
+        <>
+          <p className="ayuda-form">
+            Después de recoger solo se pueden completar cantidades no
+            registradas. Las cantidades conocidas se conservan. El servidor
+            verifica ambos cupos.
+          </p>
+          <div className="form-grid">
+            {(["tubos", "frascos"] as const).map((tipo) => {
+              const valor = solicitud[`cantidad_${tipo}`];
+              const editable =
+                [
+                  "PENDING",
+                  "ASSIGNED",
+                  "GOING_TO_PICKUP",
+                  "AT_PICKUP",
+                ].includes(solicitud.estado) || valor == null;
+              return editable ? (
+                <Campo
+                  key={tipo}
+                  nombre={`cantidad_${tipo}`}
+                  etiqueta={`Cantidad de ${tipo}`}
+                  type="number"
+                  min={0}
+                  max={2147483647}
+                  step={1}
+                  defaultValue={valor ?? ""}
+                  required
+                  error={operacion.error}
+                />
+              ) : (
+                <p key={tipo}>
+                  Cantidad de {tipo}: {cantidad(valor)} · Ya recogida
+                </p>
+              );
+            })}
+          </div>
+        </>
       )}
       <Campo
         nombre="motivo"
