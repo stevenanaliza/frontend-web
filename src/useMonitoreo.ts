@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
-import { cargarMonitoreo, type MotoristaMonitor } from "./monitoreo";
+import { cargarMonitoreo, type LoteMonitoreo } from "./monitoreo";
 import { useAuth } from "./auth";
 import { puedeElegirEmpresa } from "./permisos";
 
@@ -14,7 +14,7 @@ export function useMonitoreo() {
     () => document.visibilityState !== "hidden",
   );
   const [estado, setEstado] = useState<{
-    datos?: MotoristaMonitor[];
+    datos?: LoteMonitoreo;
     error?: unknown;
     cargando: boolean;
     actualizado?: number;
@@ -42,10 +42,13 @@ export function useMonitoreo() {
         );
         if (control.signal.aborted) return;
         setEstado({ datos, cargando: false, actualizado: Date.now() });
-        if (automaticoActual.current && !datos.some((d) => d.errorGps))
-          timer = setTimeout(() => {
-            if (automaticoActual.current) void cargar();
-          }, 15_000);
+        if (automaticoActual.current)
+          timer = setTimeout(
+            () => {
+              if (automaticoActual.current) void cargar();
+            },
+            Math.min(2147483647, datos.intervalo * 1000),
+          );
       } catch (error) {
         if (!control.signal.aborted) {
           setEstado({ error, cargando: false });

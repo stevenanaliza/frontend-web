@@ -55,7 +55,7 @@ async function preparar(page: Page, network = false, globalCorporate = false) {
       "solicitud.crear",
       "usuario.administrar",
       "rol.asignar",
-      "solicitud.ver_seguimiento",
+      "repartidor.ver_ubicacion",
     ],
   };
   const paginar = (resultados: unknown[]) => ({
@@ -82,6 +82,23 @@ async function preparar(page: Page, network = false, globalCorporate = false) {
     if (ruta.endsWith("iniciar-sesion/")) return responder(tokens);
     if (ruta.endsWith("mi-perfil/")) return responder(usuario);
     if (ruta.endsWith("/repartidores/resumenes/")) return responder(lista);
+    if (ruta === "/api/v1/seguimiento/motoristas/") {
+      const base = ejemplosSeccion("## 0.45.0 — Ubicación administrativa")[0];
+      return responder({
+        ...base,
+        resultados: [propia, ajena].map((id, i) => ({
+          ...base.resultados[0],
+          empresa_id: id,
+          repartidor_id: i ? "motorista-ajeno" : motorista.id,
+          usuario_id: motorista.usuario.id,
+          nombre: i ? "Delivery Ajeno" : "Carlos Mendoza",
+          ubicacion: null,
+          estado_ubicacion: "SIN_UBICACION",
+          ubicacion_vigente: false,
+          antiguedad_segundos: null,
+        })),
+      });
+    }
     if (ruta === "/api/v1/repartidores/")
       return responder(
         paginar([
@@ -275,9 +292,7 @@ test("Monitorear Corporate solo muestra sus deliverys y la vista móvil no pide 
   );
   expect(
     consultas
-      .filter((u) =>
-        ["/api/v1/repartidores/", "/api/v1/solicitudes/"].includes(u.pathname),
-      )
+      .filter((u) => ["/api/v1/seguimiento/motoristas/"].includes(u.pathname))
       .every((u) => u.searchParams.get("empresa_id") === propia),
   ).toBe(true);
   await page.setViewportSize({ width: 320, height: 900 });

@@ -80,7 +80,7 @@ test("actualiza, elimina posiciones al terminar y pausa sin repetir consultas", 
   await page.getByRole("button", { name: "Activar actualización" }).click();
   await expect(page.locator("gmp-marcador-prueba")).toHaveCount(0);
   await expect(
-    page.getByText("3 motoristas · 0 con ubicación · 3 sin punto disponible", {
+    page.getByText("0 motoristas · 0 con ubicación · 0 sin punto disponible", {
       exact: true,
     }),
   ).toBeVisible();
@@ -127,7 +127,9 @@ test("deniega navegación y lectura GPS sin el permiso oficial", async ({
   expect(
     peticiones.some(
       (p) =>
-        p.ruta.endsWith("/seguimiento/") || p.ruta === "/api/v1/repartidores/",
+        p.ruta === "/api/v1/seguimiento/motoristas/" ||
+        p.ruta.endsWith("/seguimiento/") ||
+        p.ruta === "/api/v1/repartidores/",
     ),
   ).toBe(false);
 });

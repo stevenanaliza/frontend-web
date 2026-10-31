@@ -2,7 +2,12 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useAuth } from "./auth";
 import { Cabecera } from "./admin-comunes";
-import { tieneTodos, permisosMonitoreo, puedeElegirEmpresa } from "./permisos";
+import {
+  tieneTodos,
+  permisosMonitoreo,
+  puedeMonitorear,
+  puedeElegirEmpresa,
+} from "./permisos";
 
 const acciones = [
   {
@@ -16,7 +21,7 @@ const acciones = [
     ruta: "/monitorear",
     permisos: permisosMonitoreo,
     texto:
-      "Ubicación reportada, solicitudes y carga de tubos y frascos de los motoristas.",
+      "Jornada vigente, ubicación reportada y carga autorizada de los motoristas.",
   },
   {
     nombre: "Crear solicitud",
@@ -109,7 +114,11 @@ export function Administracion() {
             </Link>
           )}
         {acciones
-          .filter((a) => tieneTodos(perfil, a.permisos))
+          .filter(
+            (a) =>
+              tieneTodos(perfil, a.permisos) &&
+              (a.nombre !== "Monitorear" || puedeMonitorear(perfil)),
+          )
           .map((a) => (
             <Link key={a.nombre} className="panel acceso-admin" to={a.ruta}>
               <div>

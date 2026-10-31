@@ -1,203 +1,288 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   cargarMonitoreo,
+  cargarFichaMonitoreo,
   estadoGps,
-  seguimientoSchema,
-  type PedirMonitoreo,
+  antiguedadGps,
+  motoristaSeguimientoSchema,
+  paginaSeguimientoSchema,
 } from "../src/monitoreo";
 import { ApiError } from "../src/errores";
-import { ejemplosSeccion, motorista, solicitud } from "./fixtures";
-
-const ejemplo = ejemplosSeccion(
-  "### Consultar seguimiento de una solicitud",
-)[0];
-const activa = {
-  ...solicitud,
-  estado: "IN_TRANSIT",
-  repartidor_asignado_id: motorista.id,
-};
-const gps = {
-  ...ejemplo,
-  solicitud_id: activa.id,
-  ubicacion: { ...ejemplo.ubicacion, repartidor_id: motorista.id },
-};
-const pagina = (resultados: unknown[], siguiente: string | null = null) => ({
-  conteo: resultados.length,
-  pagina_siguiente: siguiente,
-  pagina_anterior: null,
-  resultados,
-});
-function preparar(
-  opciones: { gps?: unknown; fallo?: number; motoristas?: unknown[] } = {},
-) {
-  const rutas: string[] = [];
-  const pedir: PedirMonitoreo = async (ruta) => {
-    rutas.push(ruta);
-    const url = new URL(ruta, "http://api.test");
-    if (url.pathname.endsWith("/repartidores/"))
-      return pagina(opciones.motoristas ?? [motorista]);
-    if (url.pathname.endsWith("/solicitudes/"))
-      return pagina(
-        url.searchParams.get("estado") === "IN_TRANSIT" ? [activa] : [],
-      );
-    if (url.pathname.endsWith("/seguimiento/")) {
-      if (opciones.fallo)
-        throw new ApiError(
-          opciones.fallo,
-          opciones.fallo === 503
-            ? { codigo: "CIERRE_OPERATIVO_PENDIENTE" }
-            : {},
-          5,
-        );
-      return opciones.gps ?? gps;
-    }
-    throw new Error("Consulta no prevista");
-  };
-  return { pedir, rutas };
-}
+import { puedeMonitorear, puedeEntrar } from "../src/permisos";
+import { ejemplosSeccion, motorista, perfil } from "./fixtures";
+const muestra = ejemplosSeccion("## 0.45.0 — Ubicación administrativa")[0];
+const registro = muestra.resultados[0];
 const signal = () => new AbortController().signal;
-describe("monitoreo con GPS operativo autorizado", () => {
-  it("consulta y muestra solo los motoristas de la empresa del perfil", async () => {
-    const { pedir, rutas } = preparar({
-      motoristas: [
-        motorista,
-        { ...motorista, id: "otro", empresa_id: "otra-empresa" },
-      ],
-    });
-    const registros = await cargarMonitoreo(
-      pedir,
+const respuesta = (resultados: unknown[]) => ({
+  ...muestra,
+  resultados,
+  conteo: resultados.length,
+});
+
+describe("Monitoreo de jornada 0.45.0", () => {
+  it("lee el ejemplo sin servicios y conserva GPS no operativo", async () => {
+    const rutas: string[] = [];
+    const datos = await cargarMonitoreo(async (ruta) => {
+      rutas.push(ruta);
+      return muestra;
+    }, signal());
+    expect(datos.registros[0].punto?.latitud).toBe(14.075);
+    expect(datos.registros[0].punto?.es_operativo).toBe(false);
+    expect(datos.registros[0].solicitudes_activas).toBe(0);
+    expect(datos.intervalo).toBe(20);
+    expect(rutas).toHaveLength(1);
+    expect(rutas[0]).toContain("/seguimiento/motoristas/");
+    expect(rutas[0]).not.toContain("empresa_id");
+  });
+  it("Corporate envía su empresa y excluye registros ajenos sin consultas GPS antiguas", async () => {
+    const rutas: string[] = [];
+    const datos = await cargarMonitoreo(
+      async (ruta) => {
+        rutas.push(ruta);
+        return respuesta([
+          registro,
+          { ...registro, repartidor_id: "ajeno", empresa_id: "otra" },
+        ]);
+      },
       signal(),
-      motorista.empresa_id!,
+      registro.empresa_id,
     );
-    expect(registros.map((r) => r.motorista.id)).toEqual([motorista.id]);
+    expect(datos.registros.map((m) => m.repartidor_id)).toEqual([
+      registro.repartidor_id,
+    ]);
     expect(
-      rutas
-        .filter((r) => {
-          const path = new URL(r, "http://api.test").pathname;
-          return (
-            path.endsWith("/repartidores/") || path.endsWith("/solicitudes/")
-          );
-        })
-        .every(
-          (r) =>
-            new URL(r, "http://api.test").searchParams.get("empresa_id") ===
-            motorista.empresa_id,
-        ),
+      new URL(rutas[0], "https://test").searchParams.get("empresa_id"),
+    ).toBe(registro.empresa_id);
+  });
+  it("completa todas las páginas sin seguir URLs externas y no publica resultados parciales", async () => {
+    const rutas: string[] = [];
+    const datos = await cargarMonitoreo(async (ruta) => {
+      rutas.push(ruta);
+      return rutas.length === 1
+        ? { ...muestra, pagina_siguiente: "https://ajeno.test/" }
+        : respuesta([{ ...registro, repartidor_id: "segundo" }]);
+    }, signal());
+    expect(datos.registros).toHaveLength(2);
+    expect(
+      rutas.every((r) => r.startsWith("/api/v1/seguimiento/motoristas/")),
     ).toBe(true);
+    await expect(
+      cargarMonitoreo(
+        async () => ({ ...muestra, pagina_siguiente: "otro" }),
+        signal(),
+      ),
+    ).rejects.toThrow("contrato");
   });
-  it("agrupa la carga real y las solicitudes por motorista, sin sumar hitos", async () => {
-    const { pedir, rutas } = preparar();
-    const [registro] = await cargarMonitoreo(pedir, signal());
-    expect(registro.motorista.tubos_en_transporte).toBe(
-      motorista.tubos_en_transporte,
-    );
-    expect(registro.solicitudes).toHaveLength(1);
-    expect(registro.punto?.latitud).toBe(Number(gps.ubicacion.latitud));
-    expect(rutas.filter((r) => r.includes("/seguimiento/"))).toHaveLength(1);
-    expect(rutas.every((r) => r.startsWith("/api/v1/"))).toBe(true);
+  it("una segunda página fallida propaga el error sin entregar la primera", async () => {
+    let n = 0;
+    await expect(
+      cargarMonitoreo(async () => {
+        if (++n === 1) return { ...muestra, pagina_siguiente: "otra" };
+        throw new ApiError(503, { codigo: "CIERRE_OPERATIVO_PENDIENTE" }, 5);
+      }, signal()),
+    ).rejects.toMatchObject({ cierrePendiente: true });
   });
+  it.each([401, 403, 404, 500])(
+    "HTTP %s no activa un seguimiento alternativo",
+    async (status) => {
+      let n = 0;
+      await expect(
+        cargarMonitoreo(async () => {
+          n++;
+          throw new ApiError(status);
+        }, signal()),
+      ).rejects.toMatchObject({ status });
+      expect(n).toBe(1);
+    },
+  );
   it.each([
-    { ...gps, seguimiento_disponible: false },
-    { ...gps, estado: "DELIVERED" },
-    { ...gps, ubicacion: null },
-    { ...gps, ubicacion: { ...gps.ubicacion, es_operativo: false } },
-  ])(
-    "no representa una ubicación no disponible o finalizada",
-    async (respuesta) => {
-      const { pedir } = preparar({ gps: respuesta });
-      expect((await cargarMonitoreo(pedir, signal()))[0].punto).toBeNull();
-    },
-  );
-  it.each([403, 500])(
-    "oculta el punto ante HTTP %s y marca el error",
-    async (fallo) => {
-      const { pedir } = preparar({ fallo });
-      const [r] = await cargarMonitoreo(pedir, signal());
-      expect(r.punto).toBeNull();
-      expect(r.errorGps).toBe(true);
-    },
-  );
-  it("tolera una solicitud que deja de ser visible entre consultas", async () => {
-    const { pedir } = preparar({ fallo: 404 });
-    const [r] = await cargarMonitoreo(pedir, signal());
-    expect(r.punto).toBeNull();
-    expect(r.errorGps).toBe(false);
+    "ACTUALIZADA",
+    "DESACTUALIZADA",
+    "SIN_PRECISION",
+    "BAJA_PRECISION",
+    "SIN_UBICACION",
+  ])("interpreta %s con las reglas del servidor", async (estado_ubicacion) => {
+    const sin = estado_ubicacion === "SIN_UBICACION";
+    const m = {
+      ...registro,
+      estado_ubicacion,
+      ubicacion_vigente: estado_ubicacion === "ACTUALIZADA",
+      ubicacion: sin ? null : registro.ubicacion,
+      antiguedad_segundos: sin ? null : 2,
+    };
+    const datos = await cargarMonitoreo(async () => respuesta([m]), signal());
+    expect(estadoGps(datos.registros[0], datos.registros[0].recibidoEn)).toBe(
+      {
+        ACTUALIZADA: "Ubicación reciente",
+        DESACTUALIZADA: "Ubicación antigua",
+        SIN_PRECISION: "Precisión no informada",
+        BAJA_PRECISION: "Baja precisión",
+        SIN_UBICACION: "Sin ubicación disponible",
+      }[estado_ubicacion],
+    );
+    if (sin) expect(datos.registros[0].punto).toBeNull();
   });
-  it("rechaza coordenadas fuera de rango y datos de otro motorista", async () => {
+  it("usa edad del servidor y tiempo monotónico con umbral configurable, no la hora del equipo", async () => {
+    const datos = await cargarMonitoreo(
+      async () => ({
+        ...muestra,
+        criterios_vigencia: {
+          antiguedad_maxima_segundos: 5,
+          precision_maxima_metros: 20,
+        },
+      }),
+      signal(),
+    );
+    const m = datos.registros[0];
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2040-01-01"));
+      expect(estadoGps(m, m.recibidoEn + 2000)).toBe("Ubicación reciente");
+      expect(estadoGps(m, m.recibidoEn + 4000)).toBe("Ubicación antigua");
+      expect(antiguedadGps(m, m.recibidoEn + 2000)).toBe(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("rechaza datos inconsistentes y coordenadas inválidas", async () => {
+    for (const cambio of [
+      { ubicacion_vigente: false },
+      { ubicacion: null },
+      { tiene_servicios_activos: true },
+      { ubicacion: { ...registro.ubicacion, latitud: "91" } },
+      {
+        ubicacion: {
+          ...registro.ubicacion,
+          registrada_en: "2026-10-29T01:00:00Z",
+        },
+      },
+    ])
+      expect(
+        motoristaSeguimientoSchema.safeParse({ ...registro, ...cambio })
+          .success,
+      ).toBe(false);
     expect(
-      seguimientoSchema.safeParse({
-        ...gps,
-        ubicacion: { ...gps.ubicacion, latitud: "91" },
+      paginaSeguimientoSchema.safeParse({
+        ...muestra,
+        intervalo_actualizacion_segundos: 0,
       }).success,
     ).toBe(false);
-    const { pedir } = preparar({
-      gps: { ...gps, ubicacion: { ...gps.ubicacion, repartidor_id: "otro" } },
-    });
-    expect((await cargarMonitoreo(pedir, signal()))[0].punto).toBeNull();
+    await expect(
+      cargarMonitoreo(
+        async () =>
+          respuesta([
+            {
+              ...registro,
+              ubicacion: {
+                ...registro.ubicacion,
+                registrada_en: "2099-01-01T00:00:00Z",
+              },
+            },
+          ]),
+        signal(),
+      ),
+    ).rejects.toThrow("contrato");
   });
-  it("propaga la pérdida de sesión", async () => {
-    const { pedir } = preparar({ fallo: 401 });
-    await expect(cargarMonitoreo(pedir, signal())).rejects.toMatchObject({
-      status: 401,
-    });
+  it("almuerzo, espera y falta de GPS no requieren solicitudes", async () => {
+    const datos = await cargarMonitoreo(
+      async () =>
+        respuesta([
+          { ...registro, en_almuerzo: true, estado_operativo: "PAUSED" },
+          {
+            ...registro,
+            repartidor_id: "sin-gps",
+            ubicacion: null,
+            estado_ubicacion: "SIN_UBICACION",
+            ubicacion_vigente: false,
+            antiguedad_segundos: null,
+          },
+        ]),
+      signal(),
+    );
+    expect(datos.registros).toHaveLength(2);
+    expect(datos.registros[0].punto).not.toBeNull();
+    expect(datos.registros[1].punto).toBeNull();
   });
-  it("propaga la recuperación temporal del servidor aunque ocurra al consultar GPS", async () => {
-    const { pedir } = preparar({ fallo: 503 });
-    await expect(cargarMonitoreo(pedir, signal())).rejects.toMatchObject({
-      status: 503,
-      cierrePendiente: true,
-      espera: 5,
-    });
-  });
-  it("no consulta GPS sin motoristas ni continúa una lectura abortada", async () => {
-    const { pedir, rutas } = preparar({ motoristas: [] });
-    expect(await cargarMonitoreo(pedir, signal())).toEqual([]);
-    expect(rutas).toHaveLength(1);
+  it("un listado vacío retira toda la jornada y una lectura abortada no consulta", async () => {
+    expect(
+      (await cargarMonitoreo(async () => respuesta([]), signal())).registros,
+    ).toEqual([]);
     const c = new AbortController();
     c.abort();
-    await expect(cargarMonitoreo(pedir, c.signal)).rejects.toBeDefined();
+    let n = 0;
+    await expect(
+      cargarMonitoreo(async () => {
+        n++;
+        return muestra;
+      }, c.signal),
+    ).rejects.toBeDefined();
+    expect(n).toBe(0);
   });
-  it("distingue capturas recientes, antiguas y fechas futuras", () => {
-    const punto = seguimientoSchema.parse(gps).ubicacion!;
-    const tiempo = Date.parse(punto.registrada_en);
-    expect(estadoGps(punto, tiempo + 119_000)).toBe("Ubicación reciente");
-    expect(estadoGps(punto, tiempo + 121_000)).toBe("Ubicación antigua");
-    expect(estadoGps(punto, tiempo - 61_000)).toBe(
-      "Fecha de GPS por verificar",
+  it("la ficha no solicita permisos ajenos al seguimiento", async () => {
+    const datos = await cargarMonitoreo(async () => muestra, signal());
+    let n = 0;
+    const ficha = await cargarFichaMonitoreo(
+      async () => {
+        n++;
+        return {};
+      },
+      signal(),
+      datos.registros[0],
+      ["repartidor.ver_ubicacion"],
     );
-    expect(estadoGps(null, tiempo)).toBe("Sin ubicación disponible");
+    expect(n).toBe(0);
+    expect(ficha.motorista).toBeUndefined();
+    expect(ficha.solicitudes).toBeUndefined();
   });
-  it("recorre páginas del directorio y elige un solo punto más reciente por motorista", async () => {
-    const segunda = { ...activa, id: "segunda" };
-    const rutas: string[] = [];
-    const pedir: PedirMonitoreo = async (ruta) => {
-      rutas.push(ruta);
-      const url = new URL(ruta, "http://api.test");
-      if (url.pathname.endsWith("/repartidores/"))
-        return url.searchParams.get("pagina") === "1"
-          ? pagina([motorista], "https://no-se-debe-visitar.test/")
-          : pagina([{ ...motorista, id: "inactivo" }]);
-      if (url.pathname.endsWith("/solicitudes/"))
-        return pagina(
-          url.searchParams.get("estado") === "IN_TRANSIT"
-            ? [activa, segunda]
-            : [],
-        );
-      return {
-        ...gps,
-        solicitud_id: url.pathname.includes("segunda") ? segunda.id : activa.id,
-        ubicacion: {
-          ...gps.ubicacion,
-          registrada_en: url.pathname.includes("segunda")
-            ? "2026-10-28T12:02:00Z"
-            : "2026-10-28T12:00:00Z",
-        },
-      };
+  it("la ficha verifica la identidad y empresa del motorista", async () => {
+    const datos = await cargarMonitoreo(
+      async () =>
+        respuesta([
+          {
+            ...registro,
+            repartidor_id: motorista.id,
+            usuario_id: motorista.usuario.id,
+            empresa_id: motorista.empresa_id,
+          },
+        ]),
+      signal(),
+    );
+    await expect(
+      cargarFichaMonitoreo(
+        async () => ({ ...motorista, empresa_id: "ajena" }),
+        signal(),
+        datos.registros[0],
+        ["repartidor.ver"],
+      ),
+    ).rejects.toThrow("contrato");
+  });
+  it("requiere el permiso nuevo y alcance completo; Network solo global", () => {
+    const p = { ...perfil, permisos: ["repartidor.ver_ubicacion"] };
+    expect(puedeMonitorear(p)).toBe(true);
+    expect(puedeEntrar(p)).toBe(true);
+    expect(puedeMonitorear(perfil)).toBe(false);
+    expect(
+      puedeMonitorear({
+        ...p,
+        roles: p.roles.map((r) => ({
+          ...r,
+          tipo_alcance: "SUCURSAL" as const,
+        })),
+      }),
+    ).toBe(false);
+    const red = {
+      ...p,
+      roles: p.roles.map((r) => ({ ...r, codigo: "OPERADOR_RED" })),
     };
-    const datos = await cargarMonitoreo(pedir, signal());
-    expect(datos).toHaveLength(2);
-    expect(datos[0].punto?.registrada_en).toBe("2026-10-28T12:02:00Z");
-    expect(datos[1].punto).toBeNull();
-    expect(rutas.some((r) => r.startsWith("https:"))).toBe(false);
+    expect(puedeMonitorear(red)).toBe(false);
+    expect(
+      puedeMonitorear({
+        ...red,
+        roles: red.roles.map((r) => ({
+          ...r,
+          tipo_alcance: "GLOBAL" as const,
+        })),
+      }),
+    ).toBe(true);
   });
 });

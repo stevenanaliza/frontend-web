@@ -8,9 +8,7 @@ import {
   tokens,
 } from "../fixtures";
 
-const ejemploGps = ejemplosSeccion(
-  "### Consultar seguimiento de una solicitud",
-)[0];
+const ejemploGps = ejemplosSeccion("## 0.45.0 — Ubicación administrativa")[0];
 const sinCarga = {
   solicitudes_activas: 0,
   tubos_en_transporte: 0,
@@ -87,32 +85,77 @@ export async function prepararMonitoreo(page: Page, conPermiso = true) {
       return enviar({
         ...perfil,
         permisos: conPermiso
-          ? [...perfil.permisos, "solicitud.ver_seguimiento"]
+          ? [...perfil.permisos, "repartidor.ver_ubicacion"]
           : perfil.permisos,
       });
     if (url.pathname.endsWith("/repartidores/resumenes/")) return enviar(lista);
+    if (url.pathname === "/api/v1/seguimiento/motoristas/") {
+      const error = control.errorGps || control.errorDirectorio;
+      if (error)
+        return enviar(
+          error === 503 ? { codigo: "CIERRE_OPERATIVO_PENDIENTE" } : {},
+          error,
+        );
+      const hora = new Date().toISOString();
+      return enviar({
+        ...ejemploGps,
+        hora_servidor: hora,
+        conteo: control.finalizar ? 0 : 3,
+        resultados: control.finalizar
+          ? []
+          : [motorista, segundaMoto, sinGps].map((m, i) => ({
+              ...ejemploGps.resultados[0],
+              repartidor_id: m.id,
+              usuario_id: m.usuario.id,
+              nombre: `${m.usuario.nombres} ${m.usuario.apellidos}`,
+              empresa_id: m.empresa_id,
+              jornada_id: `jornada-${m.id}`,
+              fecha_operativa: hora.slice(0, 10),
+              iniciada_en: new Date(Date.now() - 3600000).toISOString(),
+              cierre_programado_en: new Date(
+                Date.now() + 3600000,
+              ).toISOString(),
+              estado_operativo: m.estado_operativo,
+              en_almuerzo: false,
+              solicitudes_activas: i === 0 ? 2 : i === 1 ? 1 : 0,
+              tiene_servicios_activos: i < 2,
+              ubicacion:
+                i === 2
+                  ? null
+                  : {
+                      ...ejemploGps.resultados[0].ubicacion,
+                      registrada_en: new Date(
+                        Date.now() - (i ? 600000 : 20000),
+                      ).toISOString(),
+                      recibida_en: hora,
+                    },
+              estado_ubicacion:
+                i === 2
+                  ? "SIN_UBICACION"
+                  : i === 1
+                    ? "DESACTUALIZADA"
+                    : "ACTUALIZADA",
+              ubicacion_vigente: i === 0,
+              antiguedad_segundos: i === 2 ? null : i === 1 ? 600 : 20,
+            })),
+      });
+    }
+    if (url.pathname === `/api/v1/repartidores/${motorista.id}/`)
+      return enviar({
+        ...motorista,
+        estado_operativo: "ON_ROUTE",
+        solicitudes_activas: 2,
+        tubos_en_transporte: 3,
+        tubos_reservados: 3,
+        tubos_comprometidos: 6,
+        tubos_disponibles: 14,
+      });
+    if (url.pathname === `/api/v1/repartidores/${segundaMoto.id}/`)
+      return enviar(segundaMoto);
+    if (url.pathname === `/api/v1/repartidores/${sinGps.id}/`)
+      return enviar(sinGps);
     if (url.pathname === "/api/v1/repartidores/")
-      return control.errorDirectorio
-        ? enviar({}, control.errorDirectorio)
-        : enviar(
-            pagina([
-              control.finalizar
-                ? { ...motorista, ...sinCarga }
-                : {
-                    ...motorista,
-                    estado_operativo: "ON_ROUTE",
-                    capacidad: "AVAILABLE_SPACE",
-                    solicitudes_activas: 2,
-                    tubos_en_transporte: 3,
-                    tubos_reservados: 3,
-                    tubos_comprometidos: 6,
-                    tubos_disponibles: 14,
-                    puede_recibir_solicitudes: true,
-                  },
-              segundaMoto,
-              sinGps,
-            ]),
-          );
+      return enviar(pagina([motorista, segundaMoto, sinGps]));
     if (url.pathname === "/api/v1/solicitudes/")
       return enviar(
         pagina(
@@ -126,35 +169,6 @@ export async function prepararMonitoreo(page: Page, conPermiso = true) {
     const actual = [primera, segunda, antigua].find((s) =>
       url.pathname.includes(`/${s.id}/`),
     );
-    if (actual && url.pathname.endsWith("/seguimiento/")) {
-      if (control.errorGps)
-        return enviar(
-          control.errorGps === 503
-            ? { codigo: "CIERRE_OPERATIVO_PENDIENTE" }
-            : {},
-          control.errorGps,
-        );
-      return enviar({
-        ...ejemploGps,
-        solicitud_id: actual.id,
-        estado: actual.estado,
-        seguimiento_disponible: !control.finalizar,
-        ubicacion: control.finalizar
-          ? null
-          : {
-              ...ejemploGps.ubicacion,
-              repartidor_id: actual.repartidor_asignado_id,
-              registrada_en: new Date(
-                Date.now() -
-                  (actual === antigua
-                    ? 600_000
-                    : actual === primera
-                      ? 90_000
-                      : 20_000),
-              ).toISOString(),
-            },
-      });
-    }
     if (actual && url.pathname === `/api/v1/solicitudes/${actual.id}/`)
       return enviar({
         ...actual,

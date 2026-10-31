@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
-import { motorista, perfil } from "../fixtures";
+import { motorista, perfil, ejemplosSeccion } from "../fixtures";
 import { simularGoogleMaps } from "./mapa-doble";
 import { prepararMonitoreo } from "./soporte-monitoreo";
 
@@ -69,6 +69,45 @@ async function preparar(page: Page, antiguo = false) {
         body: JSON.stringify(pagina(datos)),
       });
     },
+  );
+  await page.route("**/api/v1/seguimiento/motoristas/**", (route) => {
+    const base = ejemplosSeccion("## 0.45.0 — Ubicación administrativa")[0];
+    const m = control.termino
+      ? { ...almorzando, en_almuerzo: false }
+      : almorzando;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...base,
+        hora_servidor: new Date().toISOString(),
+        conteo: 3,
+        resultados: [m, pausa, anterior].map((item) => ({
+          ...base.resultados[0],
+          repartidor_id: item.id,
+          usuario_id: item.usuario.id,
+          nombre: `${item.usuario.nombres} ${item.usuario.apellidos}`,
+          empresa_id: item.empresa_id,
+          en_almuerzo: item.en_almuerzo === true,
+          estado_operativo: "PAUSED",
+          ubicacion: null,
+          estado_ubicacion: "SIN_UBICACION",
+          ubicacion_vigente: false,
+          antiguedad_segundos: null,
+        })),
+      }),
+    });
+  });
+  await page.route(`**/api/v1/repartidores/${motorista.id}/`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        control.termino
+          ? { ...almorzando, en_almuerzo: false, almuerzo_iniciado_en: null }
+          : almorzando,
+      ),
+    }),
   );
   await page.route(
     /^http:\/\/api\.vitago\.test\/api\/v1\/solicitudes\/(?:\?.*)?$/,
@@ -265,15 +304,9 @@ test("Monitorear distingue almuerzo, pausa y datos ausentes; solo consulta el es
   await page
     .getByRole("combobox", { name: "Almuerzo", exact: true })
     .selectOption("false");
-  await expect(page.locator(".monitor-lista > li")).toHaveCount(1);
+  await expect(page.locator(".monitor-lista > li")).toHaveCount(2);
   await expect(page.locator(".monitor-lista")).toContainText("Pausa General");
   await expect(ficha).toContainText("Selecciona un motorista");
-  await page
-    .getByRole("combobox", { name: "Almuerzo", exact: true })
-    .selectOption("sin_dato");
-  await expect(page.locator(".monitor-lista")).toContainText(
-    "Versión Anterior",
-  );
   await page
     .getByRole("combobox", { name: "Almuerzo", exact: true })
     .selectOption("true");

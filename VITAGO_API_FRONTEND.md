@@ -20,13 +20,19 @@ es la referencia de integración para el frontend y solo presenta como
 
 Última actualización: **2026-10-30**.
 
+Actualización **0.45.0**: seguimiento administrativo durante toda la jornada
+vigente, incluso sin solicitudes o durante almuerzo. Nuevo GET
+`seguimiento/motoristas/`, paginado y protegido por `repartidor.ver_ubicacion`.
+Configuración GPS añade `seguimiento_jornada` para mantener captura/envío sin
+servicio. Sin migración. Integración móvil/web pendiente; ver sección 0.45.0.
+
 Actualización **0.44.0**: solicitudes con tubos y frascos, cupos independientes
 configurables por administración y retiro de artículos del alta. Nuevos
 `cantidad_frascos`, `limite_frascos`, carga/resúmenes/rutas ampliados y PATCH
 `solicitudes/{id}/carga/`. `articulos` deja de aceptarse y los registros previos
 se leen como `articulos_historicos`. Sustituye los ejemplos antiguos de alta con
-artículos. Dos migraciones aplicadas en las bases locales; pendientes en la
-base externa. El usuario confirmó20frascos iniciales y cupos independientes,
+artículos. Dos migraciones aplicadas en las bases locales y en Corporate
+externo, sin pendientes. El usuario confirmó20frascos iniciales y cupos independientes,
 ajustables por administración.
 
 Actualización **0.43.0**: recuperación automática de cierres al arrancar WSGI/ASGI
@@ -7235,11 +7241,24 @@ existentes, tubos anteriores y límites anteriores intactos. Corporate local
 conserva19solicitudes y19artículos; frascos anteriores permanecen null. Ambas
 bases locales quedan sin migraciones pendientes.
 
-Precheck externo READ ONLY: destino Corporate/vitago_corporativo verificado,
-plan exclusivamente estas dos migraciones,24artículos para conservar y ninguna
-solicitud abierta en ese momento. **No se han aplicado externamente**: necesitan
-autorización explícita y luego publicación coordinada de este código. El frontend
-debe actualizar el POST y sus modelos antes de probar el nuevo contrato.
+Aplicación externa autorizada el30/octubre mediante «siempre aplicalas»;
+la autorización cubre también las migraciones de futuros cambios solicitados
+de este backend, verificando siempre destino/plan/integridad. Ambas migraciones
+ya están aplicadas en34.66.87.16/vitago_corporativo/public y no quedan pendientes.
+Se ejecutaron con transacciones propias para liberar los bloqueos de empresa
+antes de alterar solicitudes. Conservados tubos de23solicitudes,24artículos
+anteriores completos y límites previos; frascos históricos NULL. Límites
+de frascos20 y restricciones presentes, historial de migraciones consistente.
+De38conteos revisados,36no variaron; GPS creció50filas y sesiones1 durante
+actividad concurrente, en tablas no escritas por las migraciones. No se eliminaron
+registros ni se infirieron cantidades anteriores de frascos.
+
+Verificación posterior con configuración de producción y BD externa READ ONLY:
+límites compartidos, motoristas, resúmenes y detalle devolvieron200/CORS correcto,
+con campos nuevos y sin login ni tokens creados. Las comprobaciones públicas
+de salud devuelven200 y la nueva ruta `/solicitudes/{id}/carga/` devuelve401
+esperado al consultar sin token, confirmando que está publicada. El frontend
+debe actualizar el POST y sus modelos para consumir el contrato nuevo.
 
 Entrega móvil/web: reemplazar el formulario/lista editable de artículos por
 dos conteos («Tubos» y «Frascos»), permitir0en uno y exigir total>0; retirar
@@ -7256,3 +7275,207 @@ corrección y resumen. Cuatro GET200 en Corporate local sobre PostgreSQL READ
 ONLY, con preparación automática deshabilitada solo en ese diagnóstico:
 límites, motoristas, resúmenes y detalle con campos nuevos. Sin login ni
 tokens de prueba. No se modificó frontend, conexión, credenciales ni tareas.
+
+## 0.45.0 — Ubicación administrativa durante toda la jornada (2026-10-30)
+
+Corporate y Network permiten a administración consultar la última ubicación
+de los motoristas mientras su jornada esté activa y no haya vencido. No exige
+servicios asignados: incluye espera, pausa y almuerzo. El teléfono debe seguir
+enviando GPS durante esos períodos; el servidor no puede producir coordenadas
+actuales si el móvil no captura o no tiene conexión.
+
+### Listado para el mapa administrativo
+
+`GET /api/v1/seguimiento/motoristas/`, con Bearer. Devuelve200 y paginación
+estándar. Requiere `repartidor.ver_ubicacion` con alcance **empresa completa o
+global**. El alcance de una sucursal no concede seguimiento de toda la flota.
+Corporate limita resultados a las empresas autorizadas. Network solo admite
+alcance global sobre su flota compartida; una cuenta de empresa cliente no ve
+la ubicación de todos los motoristas Network. Los roles existentes de
+administración/operación conservan sus alcances; no se concede el permiso a
+solicitantes ni motoristas por este cambio.
+
+Filtros opcionales:
+
+| Parámetro | Valor |
+| --- | --- |
+| `empresa_id` | UUID, solo Corporate; no amplía el alcance del usuario. |
+| `repartidor_id` | UUID de un motorista autorizado. |
+| `estado_operativo` | `AVAILABLE`, `ON_ROUTE`, `PAUSED`, `OFFLINE` u `OUT_OF_SERVICE`. |
+| `en_almuerzo` | `true` o `false`. |
+| `con_servicios` | `true` o `false`, según tenga solicitudes en los seis estados activos. |
+| `pagina`, `tamano_pagina` | Paginación existente, predeterminado 20, máximo 100 por página. |
+
+Ejemplos: `?con_servicios=false`, `?en_almuerzo=true`,
+`?empresa_id={id}&tamano_pagina=100`. En Network, enviar `empresa_id` produce400
+con ese campo; la flota compartida no pertenece a una empresa cliente. Otros
+filtros desconocidos o inválidos también devuelven400 con su nombre estable.
+Sin Bearer devuelve401; sin permiso/alcance,403. Sin jornadas que coincidan,
+devuelve200 con `conteo=0` y `resultados=[]`.
+
+Ejemplo completo de respuesta con un motorista sin solicitudes (datos ficticios):
+
+```json
+{
+  "conteo": 1,
+  "pagina_siguiente": null,
+  "pagina_anterior": null,
+  "resultados": [
+    {
+      "repartidor_id": "11111111-1111-4111-8111-111111111111",
+      "usuario_id": "22222222-2222-4222-8222-222222222222",
+      "nombre": "Motorista Ejemplo",
+      "empresa_id": "33333333-3333-4333-8333-333333333333",
+      "jornada_id": "44444444-4444-4444-8444-444444444444",
+      "fecha_operativa": "2026-10-30",
+      "iniciada_en": "2026-10-30T08:00:00-06:00",
+      "cierre_programado_en": "2026-10-30T22:00:00-06:00",
+      "estado_operativo": "AVAILABLE",
+      "en_almuerzo": false,
+      "solicitudes_activas": 0,
+      "tiene_servicios_activos": false,
+      "ubicacion": {
+        "latitud": "14.075000",
+        "longitud": "-87.190000",
+        "precision_metros": "8.50",
+        "velocidad_metros_segundo": "0.000",
+        "rumbo_grados": null,
+        "registrada_en": "2026-10-30T11:59:58-06:00",
+        "recibida_en": "2026-10-30T11:59:59-06:00",
+        "es_operativo": false
+      },
+      "estado_ubicacion": "ACTUALIZADA",
+      "ubicacion_vigente": true,
+      "antiguedad_segundos": 2.0
+    }
+  ],
+  "hora_servidor": "2026-10-30T18:00:00+00:00",
+  "intervalo_actualizacion_segundos": 20,
+  "criterios_vigencia": {
+    "antiguedad_maxima_segundos": 120,
+    "precision_maxima_metros": 50.0
+  }
+}
+```
+
+En Network `empresa_id` es `null`. El servidor selecciona la última **captura** de
+la jornada actual, no el último lote recibido. No reutiliza el punto de otra
+jornada, puntos anteriores al inicio o futuros. Incluye `es_operativo=false`:
+el punto puede representar espera sin sumar km de servicio. `solicitudes_activas`
+cuenta ASSIGNED, GOING_TO_PICKUP, AT_PICKUP, PICKED_UP, IN_TRANSIT y
+AT_DESTINATION; no cuenta PENDING ni terminales. El listado no exige estado
+AVAILABLE ni tener solicitudes.
+
+`ubicacion_vigente` solo es `true` cuando `estado_ubicacion=ACTUALIZADA`:
+
+| Estado | Significado y presentación |
+| --- | --- |
+| `ACTUALIZADA` | Captura dentro de la antigüedad máxima y precisión conocida dentro del máximo. |
+| `DESACTUALIZADA` | Última captura demasiado antigua; mostrar como última posición conocida, con su antigüedad. |
+| `SIN_PRECISION` | Captura reciente sin precisión informada; mostrar calidad desconocida. |
+| `BAJA_PRECISION` | Captura reciente con error superior al máximo; mostrar advertencia de precisión. |
+| `SIN_UBICACION` | Aún no hay GPS de esta jornada; `ubicacion=null`, `antiguedad_segundos=null`. |
+
+La antigüedad se calcula con la hora del servidor y `registrada_en`, no con
+`recibida_en`. Prevalece DESACTUALIZADA cuando un punto además es impreciso.
+Los umbrales predeterminados son120segundos/50metros, pero consumir los
+valores devueltos: pueden cambiar por configuración. No reemplazar null por
+coordenadas 0/0 ni simular una posición actual. Precisión/velocidad/rumbo pueden
+ser `null` dentro de una ubicación registrada. Las coordenadas y mediciones
+decimales se serializan como cadenas; la antigüedad es número.
+
+Al terminar o vencer la jornada, el motorista desaparece del listado aunque
+se conserve GPS histórico. También se excluyen perfiles/usuarios inactivos.
+Si un marcador ya no está en el listado completo actualizado, retirarlo del
+mapa activo. No conservarlo como conectado de forma indefinida. La respuesta
+usa `Cache-Control: no-store`.
+
+### Configuración móvil: GPS durante toda la jornada
+
+`GET /api/v1/seguimiento/configuracion/` conserva su contrato y añade:
+
+```json
+{
+  "seguimiento_jornada": {
+    "captura_habilitada": true,
+    "jornada_id": "44444444-4444-4444-8444-444444444444",
+    "cierre_programado_en": "2026-10-31T04:00:00+00:00",
+    "requiere_servicio_activo": false,
+    "incluye_tiempo_sin_servicios": true,
+    "incluye_almuerzo": true,
+    "detener_al_finalizar_jornada": true
+  }
+}
+```
+
+Este fragmento es aditivo: conserva `hora_servidor`, zona horaria, intervalos,
+diagnóstico y llegada automática. Sin jornada vigente devuelve
+`captura_habilitada=false`, `jornada_id=null`, `cierre_programado_en=null`.
+No cambiar la hora del teléfono: usar la alineación temporal existente con el
+servidor y respetar el instante de corte, aunque esté expresado en UTC.
+
+El móvil debe mantener su captura GPS y envío de lotes durante toda jornada
+vigente, también sin trabajos y durante pausa/almuerzo, con el soporte existente
+de ejecución en segundo plano. No depender de que esté abierta la pantalla de
+ruta. Frecuencias predeterminadas: captura cada 5 segundos en movimiento y 15
+detenido, envío cada 20 segundos; siempre leer los intervalos de configuración. Este cambio no
+agrega un segundo rastreador ni otro endpoint de escritura.
+
+Usar el POST existente, sin exigir solicitud ni asignación:
+
+```http
+POST /api/v1/seguimiento/registros/
+Authorization: Bearer {access_token}
+Content-Type: application/json
+```
+
+```json
+{
+  "jornada_id": "44444444-4444-4444-8444-444444444444",
+  "registros": [
+    {
+      "id_cliente": "55555555-5555-4555-8555-555555555555",
+      "sesion_gps": "66666666-6666-4666-8666-666666666666",
+      "secuencia": 1,
+      "latitud": "14.075000",
+      "longitud": "-87.190000",
+      "precision_metros": "8.50",
+      "registrada_en": "2026-10-30T11:59:58-06:00"
+    }
+  ]
+}
+```
+
+UUID/fecha son ilustrativos: usar jornada propia, IDs idempotentes y capturas
+reales. `sesion_gps`/`secuencia` mantienen la regla existente de enviarse juntos;
+no reiniciar la secuencia de una sesión al completar un servicio. No enviar
+`es_operativo`: lo determina el servidor. Se conservan respuesta201, lotes de
+hasta200, idempotencia, cola sin conexión y confirmación de sesiones al cerrar.
+Dejar de generar nuevas capturas al finalizar/vencer la jornada; sincronizar
+la cola anterior según el contrato existente. No capturar ubicación personal
+fuera de jornada.
+
+### Entrega exacta al frontend y verificación
+
+Móvil: desacoplar GPS de los servicios y de la pantalla del mapa; activarlo con
+la jornada vigente usando `seguimiento_jornada`, mantenerlo durante espera y
+almuerzo y detenerlo al cierre. Panel administrativo: consultar este GET con
+los permisos indicados, cargar todas las páginas antes de reconciliar marcadores
+y refrescar según `intervalo_actualizacion_segundos`; mostrar nombre, estado,
+almuerzo, servicios, antigüedad/precisión y ubicación sobre el mapa integrado.
+No hace falta calcular rutas ni llamar a Google para esta consulta. Es un
+seguimiento periódico por GPS; no hay WebSocket ni posición continua inventada.
+
+El seguimiento autorizado del solicitante por solicitud conserva sus reglas
+y no expone GPS de espera/almuerzo por este cambio. No se alteraron asignaciones,
+capacidad, cierres, km, evidencias ni permisos de escritura.
+
+Sin migración. Django check correcto y makemigrations--check sin cambios.
+Pruebas:888casos,861aprobados/27omitidos porque requieren PostgreSQL de pruebas,
+semilla4500, Google real bloqueado;27casos nuevos. Código actual probado con
+configuración de producción y PostgreSQL Corporate externo en READ ONLY:
+tres listados y configuración200, CORS correcto y no-store; un motorista sin
+servicios tenía ubicación ACTUALIZADA. No quedan migraciones pendientes en
+ese destino; sin login ni tokens creados. Esta comprobación usa el código local
+contra la base externa: **publicar la versión en Render** para disponer del
+endpoint nuevo allí. No se modificó frontend ni se hizo commit/push.

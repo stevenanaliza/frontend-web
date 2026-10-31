@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { ApiError, parsear } from "./errores";
+import { ContratoError, parsear } from "./errores";
 import { paginaSchema } from "./contratos";
 import {
+  detalleSolicitudSchema,
   motoristaSchema,
   solicitudSchema,
-  type Motorista,
 } from "./contratos-admin";
 
 export const estadosMonitoreo = [
@@ -15,197 +15,303 @@ export const estadosMonitoreo = [
   "IN_TRANSIT",
   "AT_DESTINATION",
 ] as const;
-const coordenada = (min: number, max: number) =>
+const decimal = (min: number, max = Number.MAX_VALUE) =>
   z
     .string()
     .regex(/^-?\d+(\.\d+)?$/)
     .transform(Number)
     .pipe(z.number().finite().min(min).max(max));
-export const seguimientoSchema = z.object({
-  solicitud_id: z.string(),
-  estado: z.string(),
-  seguimiento_disponible: z.boolean(),
-  ubicacion: z
-    .object({
-      repartidor_id: z.string(),
-      latitud: coordenada(-90, 90),
-      longitud: coordenada(-180, 180),
-      precision_metros: z
-        .string()
-        .regex(/^\d+(\.\d+)?$/)
-        .nullable(),
-      registrada_en: z.string().datetime({ offset: true }),
-      es_operativo: z.boolean(),
-    })
-    .nullable(),
+const fecha = z.string().datetime({ offset: true });
+export const puntoJornadaSchema = z.object({
+  latitud: decimal(-90, 90),
+  longitud: decimal(-180, 180),
+  precision_metros: decimal(0).nullable(),
+  velocidad_metros_segundo: decimal(0).nullable(),
+  rumbo_grados: decimal(0, 360).nullable(),
+  registrada_en: fecha,
+  recibida_en: fecha,
+  es_operativo: z.boolean(),
 });
-export type PuntoMotorista = NonNullable<
-  z.infer<typeof seguimientoSchema>["ubicacion"]
->;
-export type SolicitudMonitor = z.infer<typeof solicitudSchema>;
-export type MotoristaMonitor = {
-  motorista: Motorista;
-  solicitudes: SolicitudMonitor[];
+export const motoristaSeguimientoSchema = z
+  .object({
+    repartidor_id: z.string().min(1),
+    usuario_id: z.string().min(1),
+    nombre: z.string().min(1),
+    empresa_id: z.string().nullable(),
+    jornada_id: z.string().min(1),
+    fecha_operativa: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    iniciada_en: fecha,
+    cierre_programado_en: fecha,
+    estado_operativo: z.enum([
+      "AVAILABLE",
+      "ON_ROUTE",
+      "PAUSED",
+      "OFFLINE",
+      "OUT_OF_SERVICE",
+    ]),
+    en_almuerzo: z.boolean(),
+    solicitudes_activas: z.number().int().nonnegative(),
+    tiene_servicios_activos: z.boolean(),
+    ubicacion: puntoJornadaSchema.nullable(),
+    estado_ubicacion: z.enum([
+      "ACTUALIZADA",
+      "DESACTUALIZADA",
+      "SIN_PRECISION",
+      "BAJA_PRECISION",
+      "SIN_UBICACION",
+    ]),
+    ubicacion_vigente: z.boolean(),
+    antiguedad_segundos: z.number().finite().nonnegative().nullable(),
+  })
+  .superRefine((m, ctx) => {
+    if (m.ubicacion_vigente !== (m.estado_ubicacion === "ACTUALIZADA"))
+      ctx.addIssue({
+        code: "custom",
+        path: ["ubicacion_vigente"],
+        message: "Vigencia incompatible",
+      });
+    if (
+      (m.ubicacion === null) !== (m.estado_ubicacion === "SIN_UBICACION") ||
+      (m.ubicacion === null) !== (m.antiguedad_segundos === null)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["ubicacion"],
+        message: "Ubicación incompatible",
+      });
+    if (m.tiene_servicios_activos !== m.solicitudes_activas > 0)
+      ctx.addIssue({
+        code: "custom",
+        path: ["solicitudes_activas"],
+        message: "Servicios incompatibles",
+      });
+    if (
+      m.ubicacion &&
+      Date.parse(m.ubicacion.registrada_en) < Date.parse(m.iniciada_en)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["ubicacion"],
+        message: "GPS anterior a la jornada",
+      });
+  });
+export const paginaSeguimientoSchema = paginaSchema(
+  motoristaSeguimientoSchema,
+).extend({
+  hora_servidor: fecha,
+  intervalo_actualizacion_segundos: z.number().finite().positive(),
+  criterios_vigencia: z.object({
+    antiguedad_maxima_segundos: z.number().finite().positive(),
+    precision_maxima_metros: z.number().finite().nonnegative(),
+  }),
+});
+export type MotoristaSeguimiento = z.infer<typeof motoristaSeguimientoSchema>;
+export type PuntoMotorista = z.infer<typeof puntoJornadaSchema>;
+export type MotoristaMonitor = MotoristaSeguimiento & {
   punto: PuntoMotorista | null;
-  errorGps: boolean;
+  recibidoEn: number;
+  antiguedadMaxima: number;
+};
+export type LoteMonitoreo = {
+  registros: MotoristaMonitor[];
+  intervalo: number;
+  criterios: z.infer<typeof paginaSeguimientoSchema>["criterios_vigencia"];
+  horaServidor: string;
 };
 export type PedirMonitoreo = (
   ruta: string,
   init: { signal: AbortSignal },
 ) => Promise<unknown>;
 
-// Leer todas las páginas del alcance autorizado; nunca seguir URLs externas del paginador.
-async function paginas<T extends { id: string }>(
+export async function cargarMonitoreo(
   pedir: PedirMonitoreo,
-  ruta: string,
-  schema: z.ZodType<T>,
   signal: AbortSignal,
-  estado?: string,
   empresaId?: string,
-) {
-  const registros = new Map<string, T>();
+): Promise<LoteMonitoreo> {
+  const registros = new Map<string, MotoristaMonitor>();
+  const leidos = new Set<string>();
+  let ultima: z.infer<typeof paginaSeguimientoSchema>;
   for (let pagina = 1; ; pagina++) {
     signal.throwIfAborted();
-    const filtros = new URLSearchParams({
+    const q = new URLSearchParams({
       pagina: String(pagina),
       tamano_pagina: "100",
     });
-    if (estado) filtros.set("estado", estado);
-    if (empresaId) filtros.set("empresa_id", empresaId);
+    // Network no admite empresa_id en este endpoint.
+    if (empresaId) q.set("empresa_id", empresaId);
     const datos = parsear(
-      paginaSchema(schema),
-      await pedir(`${ruta}?${filtros}`, { signal }),
+      paginaSeguimientoSchema,
+      await pedir(`/api/v1/seguimiento/motoristas/?${q}`, { signal }),
     );
-    const anteriores = registros.size;
-    datos.resultados.forEach((r) => registros.set(r.id, r));
-    if (!datos.pagina_siguiente) return [...registros.values()];
-    if (registros.size === anteriores)
-      throw new Error("La paginación no avanza.");
+    const recibidoEn = performance.now();
+    const previos = leidos.size;
+    for (const m of datos.resultados) {
+      leidos.add(m.repartidor_id);
+      if (empresaId && m.empresa_id !== empresaId) continue;
+      if (
+        m.ubicacion_vigente &&
+        (m.ubicacion?.precision_metros == null ||
+          m.ubicacion.precision_metros >
+            datos.criterios_vigencia.precision_maxima_metros ||
+          m.antiguedad_segundos! >
+            datos.criterios_vigencia.antiguedad_maxima_segundos)
+      )
+        throw new ContratoError(["ubicacion_vigente", "criterios_vigencia"]);
+      if (
+        m.ubicacion &&
+        Date.parse(m.ubicacion.registrada_en) > Date.parse(datos.hora_servidor)
+      )
+        throw new ContratoError(["ubicacion.registrada_en"]);
+      registros.set(m.repartidor_id, {
+        ...m,
+        punto: m.ubicacion,
+        recibidoEn,
+        antiguedadMaxima: datos.criterios_vigencia.antiguedad_maxima_segundos,
+      });
+    }
+    ultima = datos;
+    if (!datos.pagina_siguiente) break;
+    if (leidos.size === previos) throw new ContratoError(["pagina_siguiente"]);
   }
+  signal.throwIfAborted();
+  return {
+    registros: [...registros.values()],
+    intervalo: ultima.intervalo_actualizacion_segundos,
+    criterios: ultima.criterios_vigencia,
+    horaServidor: ultima.hora_servidor,
+  };
+}
+export function antiguedadGps(m: MotoristaMonitor, ahora = performance.now()) {
+  return m.antiguedad_segundos === null
+    ? null
+    : m.antiguedad_segundos + Math.max(0, ahora - m.recibidoEn) / 1000;
+}
+export function estadoGps(m: MotoristaMonitor, ahora = performance.now()) {
+  const edad = antiguedadGps(m, ahora);
+  if (m.punto && edad !== null && edad > m.antiguedadMaxima)
+    return "Ubicación antigua";
+  return {
+    ACTUALIZADA: "Ubicación reciente",
+    DESACTUALIZADA: "Ubicación antigua",
+    SIN_PRECISION: "Precisión no informada",
+    BAJA_PRECISION: "Baja precisión",
+    SIN_UBICACION: "Sin ubicación disponible",
+  }[m.estado_ubicacion];
 }
 
+// La ficha amplía la información solo al seleccionar un motorista y con permisos independientes.
+async function paginasSolicitudes(
+  pedir: PedirMonitoreo,
+  signal: AbortSignal,
+  estado: string,
+  empresaId?: string,
+) {
+  const items = new Map<string, z.infer<typeof solicitudSchema>>();
+  for (let pagina = 1; ; pagina++) {
+    signal.throwIfAborted();
+    const q = new URLSearchParams({
+      estado,
+      pagina: String(pagina),
+      tamano_pagina: "100",
+    });
+    if (empresaId) q.set("empresa_id", empresaId);
+    const datos = parsear(
+      paginaSchema(solicitudSchema),
+      await pedir(`/api/v1/solicitudes/?${q}`, { signal }),
+    );
+    const anteriores = items.size;
+    datos.resultados.forEach((s) => items.set(s.id, s));
+    if (!datos.pagina_siguiente) return [...items.values()];
+    if (items.size === anteriores)
+      throw new ContratoError(["pagina_siguiente"]);
+  }
+}
 async function concurrentes<T, R>(
-  items: T[],
+  items: readonly T[],
   ejecutar: (item: T) => Promise<R>,
 ) {
   const resultados = new Array<R>(items.length);
-  let indice = 0;
-  let fallo = false;
+  let indice = 0,
+    fallo = false;
   await Promise.all(
     Array.from({ length: Math.min(4, items.length) }, async () => {
       while (!fallo && indice < items.length) {
-        const actual = indice++;
+        const i = indice++;
         try {
-          resultados[actual] = await ejecutar(items[actual]);
-        } catch (error) {
+          resultados[i] = await ejecutar(items[i]);
+        } catch (e) {
           fallo = true;
-          throw error;
+          throw e;
         }
       }
     }),
   );
   return resultados;
 }
-
-export async function cargarMonitoreo(
+export async function cargarFichaMonitoreo(
   pedir: PedirMonitoreo,
   signal: AbortSignal,
+  registro: MotoristaMonitor,
+  permisos: string[],
   empresaId?: string,
-): Promise<MotoristaMonitor[]> {
-  const motoristas = (
-    await paginas(
-      pedir,
-      "/api/v1/repartidores/",
-      motoristaSchema,
-      signal,
-      undefined,
-      empresaId,
-    )
-  ).filter((m) => !empresaId || m.empresa_id === empresaId);
-  if (!motoristas.length) return [];
-  const lotes = await concurrentes([...estadosMonitoreo], (estado) =>
-    paginas(
-      pedir,
-      "/api/v1/solicitudes/",
-      solicitudSchema,
-      signal,
-      estado,
-      empresaId,
-    ),
-  );
-  const ids = new Set(motoristas.map((m) => m.id));
-  const solicitudes = [
-    ...new Map(
-      lotes
-        .flat()
-        .filter(
-          (s) =>
-            (!empresaId || s.empresa_id === empresaId) &&
-            s.repartidor_asignado_id &&
-            ids.has(s.repartidor_asignado_id),
-        )
-        .map((s) => [s.id, s]),
-    ).values(),
-  ];
-  const puntos = await concurrentes(solicitudes, async (solicitud) => {
-    try {
-      const datos = parsear(
-        seguimientoSchema,
-        await pedir(
-          `/api/v1/solicitudes/${encodeURIComponent(solicitud.id)}/seguimiento/`,
-          { signal },
-        ),
-      );
-      if (
-        datos.solicitud_id !== solicitud.id ||
-        (datos.ubicacion &&
-          datos.ubicacion.repartidor_id !== solicitud.repartidor_asignado_id)
-      )
-        throw new Error("Seguimiento incompatible con la solicitud.");
-      const punto =
-        datos.seguimiento_disponible &&
-        estadosMonitoreo.some((e) => e === datos.estado) &&
-        datos.ubicacion?.es_operativo
-          ? datos.ubicacion
-          : null;
-      return { solicitud, punto, error: false };
-    } catch (error) {
-      signal.throwIfAborted();
-      if (
-        error instanceof ApiError &&
-        (error.status === 401 || error.cierrePendiente)
-      )
-        throw error;
-      // Una solicitud puede terminar o desaparecer del alcance entre las dos consultas.
-      return {
-        solicitud,
-        punto: null,
-        error: !(error instanceof ApiError && error.status === 404),
-      };
-    }
-  });
-  return motoristas.map((motorista) => {
-    const propias = puntos.filter(
-      (p) => p.solicitud.repartidor_asignado_id === motorista.id,
-    );
-    const errorGps = propias.some((p) => p.error);
-    const vigentes = propias
-      .flatMap((p) => (p.punto ? [p.punto] : []))
-      .sort(
-        (a, b) => Date.parse(b.registrada_en) - Date.parse(a.registrada_en),
-      );
-    return {
-      motorista,
-      solicitudes: propias.map((p) => p.solicitud),
-      punto: errorGps ? null : (vigentes[0] ?? null),
-      errorGps,
-    };
-  });
-}
-
-export function estadoGps(punto: PuntoMotorista | null, ahora = Date.now()) {
-  if (!punto) return "Sin ubicación disponible";
-  const edad = ahora - Date.parse(punto.registrada_en);
-  if (edad < -60_000) return "Fecha de GPS por verificar";
-  return edad <= 120_000 ? "Ubicación reciente" : "Ubicación antigua";
+) {
+  const [motorista, solicitudes] = await Promise.all([
+    permisos.includes("repartidor.ver")
+      ? (async () => {
+          const m = parsear(
+            motoristaSchema,
+            await pedir(
+              `/api/v1/repartidores/${encodeURIComponent(registro.repartidor_id)}/`,
+              { signal },
+            ),
+          );
+          if (
+            m.id !== registro.repartidor_id ||
+            m.empresa_id !== registro.empresa_id ||
+            m.usuario.id !== registro.usuario_id
+          )
+            throw new ContratoError([
+              "repartidor_id",
+              "empresa_id",
+              "usuario_id",
+            ]);
+          return m;
+        })()
+      : undefined,
+    permisos.includes("solicitud.ver") && registro.tiene_servicios_activos
+      ? (async () => {
+          const listas = await concurrentes(estadosMonitoreo, (estado) =>
+            paginasSolicitudes(pedir, signal, estado, empresaId),
+          );
+          const propias = [
+            ...new Map(
+              listas
+                .flat()
+                .filter(
+                  (s) =>
+                    s.repartidor_asignado_id === registro.repartidor_id &&
+                    (!empresaId || s.empresa_id === empresaId),
+                )
+                .map((s) => [s.id, s]),
+            ).values(),
+          ];
+          return concurrentes(propias, async (s) => {
+            const detalle = parsear(
+              detalleSolicitudSchema,
+              await pedir(`/api/v1/solicitudes/${encodeURIComponent(s.id)}/`, {
+                signal,
+              }),
+            );
+            if (
+              detalle.id !== s.id ||
+              detalle.repartidor_asignado_id !== registro.repartidor_id ||
+              detalle.empresa_id !== s.empresa_id
+            )
+              throw new ContratoError(["repartidor_asignado_id"]);
+            return detalle;
+          });
+        })()
+      : undefined,
+  ]);
+  return { motorista, solicitudes };
 }

@@ -48,6 +48,7 @@ import {
   rutaInicial,
   tieneTodos,
   permisosMonitoreo,
+  puedeMonitorear,
 } from "./permisos";
 import { Solicitudes, DetalleSolicitud } from "./Solicitudes";
 import { Motoristas } from "./Motoristas";
@@ -224,7 +225,7 @@ function Estructura() {
             <LayoutGrid size={19} aria-hidden="true" />
             Administración
           </NavLink>
-          {tieneTodos(perfil, permisosMonitoreo) && (
+          {puedeMonitorear(perfil) && (
             <NavLink onClick={() => setMenu(false)} to="/monitorear">
               <MapPin size={19} aria-hidden="true" />
               Monitorear

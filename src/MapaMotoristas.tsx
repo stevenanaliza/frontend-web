@@ -47,7 +47,9 @@ function Camara({ registros, seleccionado, encuadre }: Props) {
   }, [mapa, registros, encuadre]);
   useEffect(() => {
     if (!mapa || !seleccionado || ultimo.current === seleccionado) return;
-    const punto = registros.find((r) => r.motorista.id === seleccionado)?.punto;
+    const punto = registros.find(
+      (r) => r.repartidor_id === seleccionado,
+    )?.punto;
     if (punto) {
       mapa.panTo({ lat: punto.latitud, lng: punto.longitud });
       ultimo.current = seleccionado;
@@ -97,18 +99,18 @@ function ContenidoMapa(props: Props) {
         (r) =>
           r.punto && (
             <AdvancedMarker
-              key={r.motorista.id}
+              key={r.repartidor_id}
               position={{ lat: r.punto.latitud, lng: r.punto.longitud }}
-              title={`Ver motorista ${r.motorista.usuario.nombres} ${r.motorista.usuario.apellidos}`}
-              onClick={() => props.seleccionar(r.motorista.id)}
-              zIndex={props.seleccionado === r.motorista.id ? 10 : 1}
+              title={`Ver motorista ${r.nombre}`}
+              onClick={() => props.seleccionar(r.repartidor_id)}
+              zIndex={props.seleccionado === r.repartidor_id ? 10 : 1}
             >
               <div
                 aria-hidden="true"
-                className={`monitor-pin ${props.seleccionado === r.motorista.id ? "seleccionado" : ""} ${estadoGps(r.punto, props.ahora) !== "Ubicación reciente" ? "antiguo" : ""}`}
+                className={`monitor-pin ${props.seleccionado === r.repartidor_id ? "seleccionado" : ""} ${estadoGps(r, props.ahora) !== "Ubicación reciente" ? "antiguo" : ""}`}
               >
                 <Bike size={23} />
-                <span>{r.motorista.usuario.nombres}</span>
+                <span>{r.nombre}</span>
               </div>
             </AdvancedMarker>
           ),

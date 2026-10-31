@@ -17,13 +17,19 @@ export const empresaDeConsulta = (
   puedeElegirEmpresa(perfil) ? (solicitada ?? "") : (perfil?.empresa?.id ?? "");
 export const puedeVerReportes = (perfil: Perfil) =>
   tieneTodos(perfil, permisosReporte);
-export const permisosMonitoreo = [
-  "repartidor.ver",
-  "solicitud.ver",
-  "solicitud.ver_seguimiento",
-];
+export const permisosMonitoreo = ["repartidor.ver_ubicacion"];
+export const puedeMonitorear = (perfil: Perfil) =>
+  tieneTodos(perfil, permisosMonitoreo) &&
+  perfil.roles.some(
+    (r) =>
+      r.tipo_alcance === "GLOBAL" ||
+      (!puedeElegirEmpresa(perfil) &&
+        r.tipo_alcance === "EMPRESA" &&
+        r.empresa_id === perfil.empresa?.id),
+  );
 // solicitud.ver es administrativo; los solicitantes y motoristas reciben ver_propias/ver_asignadas.
 export const puedeEntrar = (perfil: Perfil) =>
+  puedeMonitorear(perfil) ||
   perfil.permisos.some((p) =>
     [
       "reporte.ver",

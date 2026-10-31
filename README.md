@@ -2,7 +2,7 @@
 
 Repositorio `frontend-web`: panel en React, TypeScript y Vite que consume directamente el backend Django mediante JWT. La publicación contiene archivos estáticos; no requiere un servidor Node de sesiones ni cookies de autenticación del panel. Node y npm se utilizan para desarrollar, compilar y ejecutar las pruebas.
 
-El contrato oficial es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), actualizado a 0.44.0. El proyecto Flutter y el backend Django permanecen sin modificaciones.
+El contrato oficial es [VITAGO_API_FRONTEND.md](./VITAGO_API_FRONTEND.md), actualizado a 0.45.0. El proyecto Flutter y el backend Django permanecen sin modificaciones.
 
 ## Iniciar el proyecto
 
@@ -71,7 +71,7 @@ En `/limites-motoristas`, Corporate consulta y modifica la configuración de una
 
 Los límites se aplican individualmente a cada motorista: no forman un fondo compartido entre conductores. El servidor valida reducciones contra la carga comprometida. Los formularios conservan campos y valores ante 400/403/409 y nunca repiten el PATCH automáticamente. Tras guardar se muestran los valores devueltos y se refrescan las consultas montadas de empresas, motoristas, disponibles y resúmenes; al volver a una pantalla se consulta de nuevo, sin caché persistida de cupos.
 
-El contrato 0.44.0 confirma las migraciones externas anteriores de límites y almuerzo. Las dos migraciones nuevas de tubos/frascos y su publicación coordinada siguen pendientes del equipo del backend. Un 404 del nuevo endpoint se presenta como configuración no disponible, sin volver a la edición individual ni inventar límites. Esta adaptación queda local y no realiza operaciones de Git ni publicación.
+La entrega 0.45.0 confirma que las migraciones externas de tubos/frascos ya se aplicaron y que 0.44.0 está publicado en Render. La nueva versión de seguimiento 0.45.0 todavía requiere publicación del backend. Un 404 del nuevo endpoint se presenta como configuración no disponible, sin volver a la edición individual ni inventar límites. Esta adaptación queda local y no realiza operaciones de Git ni publicación.
 
 ## Tubos y frascos · 0.44.0
 
@@ -113,11 +113,13 @@ Esta web administrativa consulta el almuerzo. Iniciarlo y finalizarlo correspond
 
 ### Configuración del mapa
 
-La ruta `/monitorear` muestra un punto por motorista con seguimiento operativo disponible y permite abrir su carga de tubos y frascos, vehículo y solicitudes; los artículos anteriores se consultan únicamente como historial en el detalle de la solicitud. Exige `repartidor.ver`, `solicitud.ver` y `solicitud.ver_seguimiento`, con el alcance autorizado por Django.
+La ruta `/monitorear` consume `GET /api/v1/seguimiento/motoristas/` para jornadas vigentes, con o sin servicios y durante pausa/almuerzo. Requiere `repartidor.ver_ubicacion` con alcance de empresa completa o global; una sucursal no habilita el mapa de la flota. Corporate fija la empresa del perfil; Network global consulta sin `empresa_id`, porque ese parámetro no está admitido en su flota compartida.
 
-La API solo permite consultar GPS mediante solicitudes activas: `/api/v1/solicitudes/{id}/seguimiento/`. Los motoristas sin ese seguimiento permanecen en el listado sin un punto en el mapa. No se usa la ubicación de inicio de jornada ni una evidencia histórica para afirmar dónde están ahora. Se muestra la fecha de captura y se distingue una ubicación de más de dos minutos. No se dibujan recorridos ni se solicitan rutas, geocodificación o Fleet Engine.
+Se cargan todas las páginas antes de reconciliar marcadores, sin seguir URLs externas. Los motoristas que desaparecen del listado completo se retiran del mapa; null no se transforma en coordenadas 0/0. Se admiten puntos no operativos, que representan espera o almuerzo sin afirmar kilómetros de servicio. Se muestran servicios activos, jornada, antigüedad y precisión. Se respetan `estado_ubicacion`, `ubicacion_vigente` y los umbrales del servidor; una captura antigua o de baja precisión se distingue visualmente de una reciente.
 
-La consulta se repite 15 segundos después de completar cada lectura, sin solapar ciclos y con un máximo de cuatro peticiones simultáneas por lote. Se pausa al ocultar la pestaña, salir de la pantalla o producirse un error. Los fallos de GPS eliminan el punto afectado; Actualizar permite reintentar. Las lecturas recorren la paginación del directorio y de los estados activos sin seguir URLs externas del paginador. Los totales de carga provienen del servidor; el detalle incluye las solicitudes visibles al administrador.
+La actualización usa `intervalo_actualizacion_segundos` del servidor (20 en el ejemplo), sin solapar ciclos y pausándose al ocultar la pestaña, salir o fallar. La edad parte del valor del servidor y avanza con tiempo monotónico, sin depender del reloj civil del equipo. Un 403/404 no vuelve al seguimiento anterior por solicitud. La ficha solicita contacto, vehículo, carga y solicitudes únicamente al seleccionar, si la cuenta tiene `repartidor.ver` y/o `solicitud.ver`, respectivamente. Se conservan los permisos separados: solo ubicación no exige lectura de todos los pedidos.
+
+No se dibujan recorridos ni se solicitan rutas, geocodificación o Fleet Engine. El código móvil no se modifica: para posiciones recientes durante espera/almuerzo, el móvil debe mantener su captura y envío de GPS según `seguimiento_jornada`. Según la entrega, el equipo del backend debe publicar 0.45.0 en Render para habilitar el endpoint nuevo. El frontend de esta adaptación permanece local.
 
 Configurar en `.env.local`:
 

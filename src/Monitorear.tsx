@@ -12,8 +12,8 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { api, parsear } from "./api";
-import { detalleSolicitudSchema, estadosSolicitud } from "./contratos-admin";
+import { api, ApiError } from "./api";
+import { estadosSolicitud } from "./contratos-admin";
 import { Cabecera } from "./admin-comunes";
 import {
   Cargando,
@@ -26,11 +26,21 @@ import {
   useConsulta,
 } from "./componentes";
 import { useMonitoreo } from "./useMonitoreo";
-import { estadoGps, type MotoristaMonitor } from "./monitoreo";
+import {
+  antiguedadGps,
+  cargarFichaMonitoreo,
+  estadoGps,
+  type MotoristaMonitor,
+} from "./monitoreo";
+import { useAuth } from "./auth";
+import { puedeElegirEmpresa, puedeMonitorear } from "./permisos";
 import "./monitoreo.css";
 import { EstadoAlmuerzo } from "./EstadoAlmuerzo";
-import { coincideAlmuerzo, type FiltroAlmuerzo } from "./almuerzos";
-
+import {
+  coincideAlmuerzo,
+  horaInicioAlmuerzo as fechaHoraServidor,
+  type FiltroAlmuerzo,
+} from "./almuerzos";
 const MapaMotoristas = lazy(() => import("./MapaMotoristas"));
 const hora = (valor: string | number) =>
   new Intl.DateTimeFormat("es-HN", {
@@ -39,38 +49,157 @@ const hora = (valor: string | number) =>
     timeZone: "America/Tegucigalpa",
   }).format(new Date(valor));
 
-function FichaMotorista({
+function DatosFicha({
   registro,
   actualizado,
+}: {
+  registro: MotoristaMonitor;
+  actualizado: number;
+}) {
+  const { perfil } = useAuth();
+  const empresa = puedeElegirEmpresa(perfil) ? undefined : perfil?.empresa?.id;
+  const detalle = useConsulta(
+    (signal) =>
+      cargarFichaMonitoreo(
+        api.solicitar,
+        signal,
+        registro,
+        perfil?.permisos ?? [],
+        empresa,
+      ),
+    `ficha-jornada:${registro.repartidor_id}:${registro.jornada_id}:${actualizado}`,
+  );
+  if (detalle.cargando)
+    return <Cargando texto="Consultando carga y solicitudes…" />;
+  if (detalle.error)
+    return <ErrorVista error={detalle.error} reintentar={detalle.recargar} />;
+  const m = detalle.datos?.motorista;
+  const solicitudes = detalle.datos?.solicitudes;
+  return (
+    <>
+      {m && (
+        <>
+          <h3>Carga, contacto y vehículo</h3>
+          <EstadoAlmuerzo
+            motorista={{
+              en_almuerzo: registro.en_almuerzo,
+              almuerzo_iniciado_en: m.almuerzo_iniciado_en,
+            }}
+          />
+          <dl className="monitor-datos">
+            <CargaFrascos carga={m} />
+            <div>
+              <dt>Solicitudes activas</dt>
+              <dd>
+                {numero(m.solicitudes_activas)} / {numero(m.limite_solicitudes)}
+              </dd>
+            </div>
+            <div>
+              <dt>Tubos en transporte</dt>
+              <dd>{numero(m.tubos_en_transporte)}</dd>
+            </div>
+            <div>
+              <dt>Tubos reservados</dt>
+              <dd>{numero(m.tubos_reservados)}</dd>
+            </div>
+            <div>
+              <dt>Tubos comprometidos</dt>
+              <dd>
+                {numero(m.tubos_comprometidos)} / {numero(m.limite_tubos)}
+              </dd>
+            </div>
+            <div>
+              <dt>Espacio para tubos</dt>
+              <dd>{numero(m.tubos_disponibles)}</dd>
+            </div>
+            <div>
+              <dt>Puede recibir solicitudes</dt>
+              <dd>{m.puede_recibir_solicitudes ? "Sí" : "No"}</dd>
+            </div>
+            <div>
+              <dt>Solicitudes sin tubos declarados</dt>
+              <dd>{numero(m.solicitudes_sin_cantidad_tubos)}</dd>
+            </div>
+            <div>
+              <dt>Teléfono</dt>
+              <dd>{m.usuario.telefono || "Sin teléfono"}</dd>
+            </div>
+            <div className="monitor-contacto">
+              <dt>Correo</dt>
+              <dd>{m.usuario.correo}</dd>
+            </div>
+            <div className="monitor-contacto">
+              <dt>Vehículo</dt>
+              <dd>
+                {m.vehiculo
+                  ? `${m.vehiculo.placa} · ${m.vehiculo.tipo} · ${m.vehiculo.estado}`
+                  : "Sin vehículo"}
+              </dd>
+            </div>
+          </dl>
+        </>
+      )}
+      {solicitudes && (
+        <>
+          <h3>Solicitudes y carga</h3>
+          <p className="ayuda-form">
+            Carga calculada por el servidor. Solo se muestran solicitudes dentro
+            de tu alcance.
+          </p>
+          {!solicitudes.length ? (
+            <p>No hay solicitudes activas visibles.</p>
+          ) : (
+            <ul className="monitor-solicitudes">
+              {solicitudes.map((s) => (
+                <li key={s.id}>
+                  <Link to={`/solicitudes/${s.id}`}>{s.numero}</Link>
+                  <span className="monitor-estado-solicitud">
+                    {estadosSolicitud[s.estado] ?? s.estado}
+                  </span>
+                  <p>
+                    {s.tipo_servicio.nombre} · {cantidad(s.cantidad_tubos)}{" "}
+                    tubos · {cantidad(s.cantidad_frascos)} frascos
+                  </p>
+                  <p>
+                    Origen: {s.origen.nombre}
+                    <br />
+                    Destino:{" "}
+                    {s.destino?.nombre ??
+                      s.destino_especial ??
+                      "Sin destino declarado"}
+                  </p>
+                  {s.articulos_historicos.length > 0 && (
+                    <Link to={`/solicitudes/${s.id}`}>
+                      Ver artículos históricos en el detalle
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      {!m && !solicitudes && (
+        <p className="ayuda-form">
+          Tu cuenta permite consultar la ubicación y la jornada. La carga y los
+          pedidos requieren permisos adicionales de consulta.
+        </p>
+      )}
+    </>
+  );
+}
+function FichaMotorista({
+  registro: r,
+  actualizado,
+  ahora,
   cerrar,
 }: {
   registro: MotoristaMonitor;
   actualizado: number;
+  ahora: number;
   cerrar: () => void;
 }) {
-  const { motorista: m, solicitudes, punto } = registro;
-  const ids = solicitudes
-    .map((s) => s.id)
-    .sort()
-    .join(",");
-  const detalle = useConsulta(
-    async (signal) =>
-      Promise.all(
-        solicitudes.map(async (s) => {
-          const datos = parsear(
-            detalleSolicitudSchema,
-            await api.solicitar(
-              `/api/v1/solicitudes/${encodeURIComponent(s.id)}/`,
-              { signal },
-            ),
-          );
-          if (datos.id !== s.id || datos.repartidor_asignado_id !== m.id)
-            throw new Error("La asignación cambió; actualiza el monitoreo.");
-          return datos;
-        }),
-      ),
-    `monitor-carga:${m.id}:${ids}:${actualizado}`,
-  );
+  const edad = antiguedadGps(r, ahora);
   return (
     <Panel
       titulo="Información del motorista"
@@ -86,162 +215,94 @@ function FichaMotorista({
       }
     >
       <div className="monitor-ficha-contenido">
-        <h3>
-          {m.usuario.nombres} {m.usuario.apellidos}
-        </h3>
+        <h3>{r.nombre}</h3>
         <div className="acciones">
           <Etiqueta>
-            {estados[m.estado_operativo] ?? m.estado_operativo}
+            {estados[r.estado_operativo] ?? r.estado_operativo}
           </Etiqueta>
-          <Etiqueta>{estados[m.capacidad] ?? m.capacidad}</Etiqueta>
-          {!m.activo && <Etiqueta tono="ambar">Perfil inactivo</Etiqueta>}
-        </div>
-        <div className="monitor-almuerzo">
-          <EstadoAlmuerzo motorista={m} />
+          <Etiqueta tono={r.en_almuerzo ? "ambar" : ""}>
+            {r.en_almuerzo ? "En almuerzo" : "Fuera de almuerzo"}
+          </Etiqueta>
         </div>
         <p className="ayuda-form">
-          {registro.errorGps
-            ? "No se pudo consultar el GPS de este motorista."
-            : punto
-              ? `Última captura: ${hora(punto.registrada_en)} (hora de Honduras).`
-              : "Sin ubicación disponible durante una solicitud activa."}
+          {estadoGps(r, ahora)}
+          {r.punto
+            ? ` · Última captura: ${hora(r.punto.registrada_en)} (hora de Honduras).`
+            : " en esta jornada."}
         </p>
-        {punto && (
-          <p className="ayuda-form">
-            Precisión reportada:{" "}
-            {punto.precision_metros === null
-              ? "sin dato"
-              : `${numero(punto.precision_metros, 1)} metros`}
-            .
-          </p>
-        )}
         <dl className="monitor-datos">
-          <CargaFrascos carga={m} />
           <div>
-            <dt>Solicitudes activas</dt>
+            <dt>Servicios activos</dt>
+            <dd>{numero(r.solicitudes_activas)}</dd>
+          </div>
+          <div>
+            <dt>Antigüedad de la captura</dt>
+            <dd>{edad === null ? "Sin captura" : `${numero(edad)} s`}</dd>
+          </div>
+          <div>
+            <dt>Precisión reportada</dt>
             <dd>
-              {numero(m.solicitudes_activas)} / {numero(m.limite_solicitudes)}
+              {r.punto?.precision_metros == null
+                ? "Sin dato"
+                : `${numero(r.punto.precision_metros, 1)} metros`}
             </dd>
           </div>
           <div>
-            <dt>Tubos en transporte</dt>
-            <dd>{numero(m.tubos_en_transporte)}</dd>
-          </div>
-          <div>
-            <dt>Tubos reservados</dt>
-            <dd>{numero(m.tubos_reservados)}</dd>
-          </div>
-          <div>
-            <dt>Tubos comprometidos</dt>
-            <dd>
-              {numero(m.tubos_comprometidos)} / {numero(m.limite_tubos)}
-            </dd>
-          </div>
-          <div>
-            <dt>Espacio para tubos</dt>
-            <dd>{numero(m.tubos_disponibles)}</dd>
-          </div>
-          <div>
-            <dt>Puede recibir solicitudes</dt>
-            <dd>{m.puede_recibir_solicitudes ? "Sí" : "No"}</dd>
-          </div>
-          <div>
-            <dt>Solicitudes sin tubos declarados</dt>
-            <dd>{numero(m.solicitudes_sin_cantidad_tubos)}</dd>
-          </div>
-          <div>
-            <dt>Teléfono</dt>
-            <dd>{m.usuario.telefono || "Sin teléfono"}</dd>
+            <dt>Fecha operativa</dt>
+            <dd>{r.fecha_operativa}</dd>
           </div>
           <div className="monitor-contacto">
-            <dt>Correo</dt>
-            <dd>{m.usuario.correo}</dd>
+            <dt>Inicio de jornada</dt>
+            <dd>{fechaHoraServidor(r.iniciada_en)}</dd>
           </div>
           <div className="monitor-contacto">
-            <dt>Vehículo</dt>
-            <dd>
-              {m.vehiculo
-                ? `${m.vehiculo.placa} · ${m.vehiculo.tipo} · ${m.vehiculo.estado}`
-                : "Sin vehículo"}
-            </dd>
+            <dt>Cierre programado</dt>
+            <dd>{fechaHoraServidor(r.cierre_programado_en)}</dd>
           </div>
         </dl>
-        <h3>Solicitudes y carga</h3>
-        <p className="ayuda-form">
-          La carga total la calcula el servidor. Este listado incluye las
-          solicitudes activas dentro de tu alcance.
-        </p>
-        {!solicitudes.length ? (
-          <p>No hay solicitudes activas visibles.</p>
-        ) : (
-          <>
-            {detalle.cargando && <Cargando texto="Consultando solicitudes…" />}
-            {detalle.error != null && (
-              <ErrorVista error={detalle.error} reintentar={detalle.recargar} />
-            )}
-            <ul className="monitor-solicitudes">
-              {solicitudes.map((s) => {
-                const completa = detalle.datos?.find((d) => d.id === s.id);
-                return (
-                  <li key={s.id}>
-                    <Link to={`/solicitudes/${s.id}`}>{s.numero}</Link>
-                    <span className="monitor-estado-solicitud">
-                      {estadosSolicitud[s.estado] ?? s.estado}
-                    </span>
-                    <p>
-                      {s.tipo_servicio.nombre} · {cantidad(s.cantidad_tubos)}{" "}
-                      tubos · {cantidad(s.cantidad_frascos)} frascos
-                    </p>
-                    <p>
-                      Origen: {s.origen.nombre}
-                      <br />
-                      Destino:{" "}
-                      {s.destino?.nombre ??
-                        s.destino_especial ??
-                        "Sin destino declarado"}
-                    </p>
-                    {completa && completa.articulos_historicos.length > 0 && (
-                      <Link to={`/solicitudes/${s.id}`}>
-                        Ver artículos históricos en el detalle
-                      </Link>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
+        <DatosFicha registro={r} actualizado={actualizado} />
       </div>
     </Panel>
   );
 }
-
 export default function Monitorear() {
+  const { perfil } = useAuth();
+  return perfil && puedeMonitorear(perfil) ? (
+    <ContenidoMonitoreo />
+  ) : (
+    <Panel titulo="Permisos insuficientes">
+      <Vacio
+        titulo="No tienes acceso a este módulo"
+        texto="El seguimiento requiere permiso de ubicación y alcance de empresa completa o global."
+      />
+    </Panel>
+  );
+}
+function ContenidoMonitoreo() {
   const consulta = useMonitoreo();
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [buscar, setBuscar] = useState("");
   const [almuerzo, setAlmuerzo] = useState<FiltroAlmuerzo>("");
   const [encuadre, setEncuadre] = useState(0);
-  const [ahora, setAhora] = useState(Date.now());
+  const [ahora, setAhora] = useState(performance.now());
   const ficha = useRef<HTMLDivElement>(null);
   const lista = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const timer = setInterval(() => setAhora(Date.now()), 15_000);
+    const timer = setInterval(() => setAhora(performance.now()), 1_000);
     return () => clearInterval(timer);
   }, []);
-  const registros = consulta.datos ?? [];
+  const registros = consulta.datos?.registros ?? [];
+  const [servicios, setServicios] = useState("");
   const visibles = registros.filter(
-    ({ motorista: m }) =>
-      coincideAlmuerzo(m, almuerzo) &&
-      `${m.usuario.nombres} ${m.usuario.apellidos} ${m.vehiculo?.placa ?? ""}`
+    (r) =>
+      coincideAlmuerzo(r, almuerzo) &&
+      (!servicios || r.tiene_servicios_activos === (servicios === "true")) &&
+      r.nombre
         .toLocaleLowerCase("es")
         .includes(buscar.trim().toLocaleLowerCase("es")),
   );
-  const ubicados = visibles.filter(
-    (r) =>
-      r.punto && estadoGps(r.punto, ahora) !== "Fecha de GPS por verificar",
-  );
-  const actual = visibles.find((r) => r.motorista.id === seleccionado);
+  const ubicados = visibles.filter((r) => r.punto);
+  const actual = visibles.find((r) => r.repartidor_id === seleccionado);
   function seleccionar(id: string) {
     setSeleccionado(id);
     requestAnimationFrame(() => {
@@ -279,24 +340,33 @@ export default function Monitorear() {
         <span>
           {!consulta.visible
             ? "Actualización pausada: pestaña oculta"
-            : consulta.error || registros.some((r) => r.errorGps)
+            : consulta.error
               ? "Actualización pausada por un error; pulsa Actualizar para reintentar"
               : consulta.cargando
                 ? "Consultando motoristas y ubicaciones…"
                 : consulta.automatico
-                  ? "Actualización automática cada 15 segundos"
+                  ? `Actualización automática cada ${consulta.datos?.intervalo ?? "…"} segundos`
                   : "Actualización automática pausada"}
           {consulta.actualizado &&
             ` · Última consulta: ${hora(consulta.actualizado)}`}
         </span>
       </div>
       <p className="ayuda-form monitor-explicacion">
-        Los puntos muestran la última captura GPS disponible durante solicitudes
-        activas. Una ubicación antigua no confirma dónde está ahora el
-        motorista.
+        Los puntos muestran la última captura de la jornada vigente, también sin
+        servicios o durante almuerzo. Una ubicación antigua no confirma dónde
+        está ahora el motorista.
       </p>
       {consulta.error != null && (
-        <ErrorVista error={consulta.error} reintentar={consulta.recargar} />
+        <>
+          {consulta.error instanceof ApiError &&
+            consulta.error.status === 404 && (
+              <p className="aviso">
+                El seguimiento de jornada todavía no está disponible en este
+                servidor.
+              </p>
+            )}
+          <ErrorVista error={consulta.error} reintentar={consulta.recargar} />
+        </>
       )}
       {!consulta.datos && consulta.cargando ? (
         <Cargando />
@@ -309,14 +379,14 @@ export default function Monitorear() {
             >
               <label htmlFor="buscar-motorista-monitor">
                 <Search size={18} aria-hidden="true" />
-                Buscar motorista o placa
+                Buscar motorista
               </label>
               <input
                 id="buscar-motorista-monitor"
                 type="search"
                 value={buscar}
                 onChange={(e) => setBuscar(e.target.value)}
-                placeholder="Nombre, apellido o placa"
+                placeholder="Nombre del motorista"
               />
               <label
                 className="monitor-filtro-almuerzo"
@@ -333,7 +403,21 @@ export default function Monitorear() {
                   <option value="">Todos</option>
                   <option value="true">En almuerzo</option>
                   <option value="false">Fuera de almuerzo</option>
-                  <option value="sin_dato">Sin información</option>
+                </select>
+              </label>
+              <label
+                className="monitor-filtro-almuerzo"
+                htmlFor="servicios-monitor"
+              >
+                Servicios
+                <select
+                  id="servicios-monitor"
+                  value={servicios}
+                  onChange={(e) => setServicios(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  <option value="true">Con servicios</option>
+                  <option value="false">Sin servicios</option>
                 </select>
               </label>
               <p>
@@ -387,11 +471,13 @@ export default function Monitorear() {
                   <div className="monitor-leyenda">
                     <span>
                       <i className="monitor-indicador" />
-                      Ubicación reciente (hasta 2 minutos)
+                      Ubicación reciente (máximo{" "}
+                      {consulta.datos.criterios.antiguedad_maxima_segundos} s /{" "}
+                      {consulta.datos.criterios.precision_maxima_metros} m)
                     </span>
                     <span>
                       <i className="monitor-indicador antiguo" />
-                      Ubicación antigua
+                      Ubicación antigua o precisión por verificar
                     </span>
                     <p>
                       Selecciona un punto para ver la información del motorista.
@@ -435,39 +521,30 @@ export default function Monitorear() {
                     ) : (
                       <ul className="monitor-lista">
                         {visibles.map((r) => (
-                          <li key={r.motorista.id}>
+                          <li key={r.repartidor_id}>
                             <button
-                              aria-pressed={seleccionado === r.motorista.id}
-                              onClick={() => seleccionar(r.motorista.id)}
+                              aria-pressed={seleccionado === r.repartidor_id}
+                              onClick={() => seleccionar(r.repartidor_id)}
                             >
                               <Bike size={22} aria-hidden="true" />
                               <span>
-                                <strong>
-                                  {r.motorista.usuario.nombres}{" "}
-                                  {r.motorista.usuario.apellidos}
-                                </strong>
+                                <strong>{r.nombre}</strong>
                                 <small>
-                                  {estados[r.motorista.estado_operativo] ??
-                                    r.motorista.estado_operativo}{" "}
-                                  · {numero(r.motorista.solicitudes_activas)}{" "}
-                                  solicitudes ·{" "}
-                                  {numero(r.motorista.tubos_en_transporte)}{" "}
-                                  tubos en transporte ·{" "}
-                                  {cantidad(r.motorista.frascos_en_transporte)}{" "}
-                                  frascos en transporte
+                                  {estados[r.estado_operativo] ??
+                                    r.estado_operativo}{" "}
+                                  · {numero(r.solicitudes_activas)} servicios
                                 </small>
                                 <small>
-                                  {r.errorGps
-                                    ? "No se pudo consultar el GPS"
-                                    : estadoGps(r.punto, ahora)}
+                                  {estadoGps(r, ahora)}
                                   {r.punto
                                     ? ` · ${hora(r.punto.registrada_en)}`
                                     : ""}
                                 </small>
-                                <EstadoAlmuerzo
-                                  motorista={r.motorista}
-                                  compacto
-                                />
+                                <small>
+                                  {r.en_almuerzo
+                                    ? "En almuerzo"
+                                    : "Fuera de almuerzo"}
+                                </small>
                               </span>
                             </button>
                           </li>
@@ -486,8 +563,9 @@ export default function Monitorear() {
               >
                 {actual ? (
                   <FichaMotorista
-                    key={actual.motorista.id}
+                    key={`${actual.repartidor_id}:${actual.jornada_id}`}
                     registro={actual}
+                    ahora={ahora}
                     actualizado={consulta.actualizado ?? 0}
                     cerrar={() => {
                       setSeleccionado(null);

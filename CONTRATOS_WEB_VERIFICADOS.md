@@ -73,7 +73,7 @@ El proxy opcional de Vite funciona únicamente durante el desarrollo local. Reen
 - Motoristas, Monitorear y resúmenes: conservan campos de frascos independientes de tubos. Los históricos null y la ausencia de campos se muestran como «No registrado». Los resúmenes muestran conocidos y operaciones sin cantidad por separado.
 - 503 `CIERRE_OPERATIVO_PENDIENTE`: mensaje de preparación, plazo monotónico de Retry-After, reintento manual después de la espera, bloqueo temporal compartido de peticiones y conservación de JWT ante la renovación temporalmente indisponible. No se repiten POST/PATCH automáticamente.
 
-La entrega oficial informa que `organizaciones.0004_tubos_frascos_sin_articulos` y `solicitudes.0009_tubos_frascos_sin_articulos` solo están aplicadas localmente en el backend. No se verifican ni ejecutan migraciones externas desde este proyecto. La publicación coordinada de 0.43/0.44 en Render y Vercel queda pendiente. Pruebas de esta adaptación con respuestas simuladas, sin consultas ni escrituras contra Render o Google.
+La entrega posterior 0.45.0 confirma que `organizaciones.0004_tubos_frascos_sin_articulos` y `solicitudes.0009_tubos_frascos_sin_articulos` ya están aplicadas externamente y 0.44.0 está publicado en Render. No se verifican ni ejecutan migraciones externas desde este proyecto. El nuevo endpoint 0.45.0 todavía requiere publicación del backend. Las pruebas de la web usan respuestas simuladas, sin consultas ni escrituras contra Render o Google.
 
 ## Acceso administrativo a almuerzos · 2026-10-30
 
@@ -82,3 +82,14 @@ Se añade `/almuerzos`, accesible desde menú y Administración con `repartidor.
 ## Empresa fija para Corporate · 2026-10-30
 
 La UI permite elegir `empresa_id` solo al rol `OPERADOR_RED` de Network, identificado en el contrato de flota. Un alcance GLOBAL de Corporate no habilita el selector. Corporate toma el ID de `perfil.empresa`, ignora empresas ajenas solicitadas en la URL y muestra el nombre de su empresa. Los endpoints y sus permisos no cambian. El monitoreo añade el filtro autorizado a directorio y solicitudes, y excluye registros de otra empresa antes de consultar GPS. Las comprobaciones se realizan con API simulada, sin modificar backend ni datos operativos.
+
+## Seguimiento por jornada · 0.45.0 · 2026-10-30
+
+- Fuente exclusiva de posiciones: GET paginado `seguimiento/motoristas/`, con `repartidor.ver_ubicacion` y alcance EMPRESA completo o GLOBAL. Network exige GLOBAL; una sucursal no habilita el seguimiento general.
+- Corporate añade su empresa del perfil y excluye registros ajenos; Network no envía `empresa_id`. No se reutiliza el GPS por solicitud como fallback ni una jornada anterior.
+- El listado completo incluye espera, pausa, almuerzo y servicios, incluso con `es_operativo=false`. La ausencia del motorista en un ciclo completo retira el marcador. Ubicación y antigüedad null se conservan como ausencia.
+- Parseo de decimales como cadenas, metadatos y cinco estados de calidad. Edad y frescura se anclan en `hora_servidor`/`antiguedad_segundos` y tiempo monotónico local; se aplican umbrales configurados y no el reloj civil del navegador. Se rechazan coordenadas fuera de rango, capturas anteriores a la jornada, futuras frente al servidor y flags de vigencia incompatibles.
+- Se respeta `intervalo_actualizacion_segundos`, se detiene ante error/ocultación y no se reconcilian páginas parciales. No se repiten escrituras: el mapa solo consulta.
+- La ficha amplía perfil/carga con `repartidor.ver` y solicitudes con `solicitud.ver`, solo al seleccionar; comprueba identidad, empresa y asignación devueltas. La lectura de GPS no depende de esos permisos adicionales.
+
+Sin migraciones ni cambios del móvil. El contrato indica que el código 0.45.0 aún debe publicarse en Render y que la captura continua de jornada corresponde a la integración móvil. La clave de Maps JavaScript API, Map ID, SDK React y restricciones existentes se conservan. Se consultaron las guías actuales de React/Advanced Markers y compliance-review de Google; no se copiaron fragmentos de sus ejemplos ni se añade una API de rutas.
